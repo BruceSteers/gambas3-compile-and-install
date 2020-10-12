@@ -31,6 +31,8 @@
 # =============  Do not edit below here =============
 
 GetDistro() {
+if [ ! -z "$BUILD" ]; then return; fi
+
 LINUXNAME=$(lsb_release -is); LINUXNAME=${LINUXNAME,,}
 LINUXVER=$(lsb_release -rs); LINUXVER=${LINUXVER%%.*}
 if [ "${LINUXNAME,,}" = "linuxmint" ]; then LINUXNAME="ubuntu"; TRUENAME="Linuxmint"; ISMINT="yes"; fi
