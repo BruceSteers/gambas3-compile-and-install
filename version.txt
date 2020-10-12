@@ -1,4 +1,13 @@
-Version history
+
+Version/Revision history
+
+
+V2.2
+xdg did not set correct +x flags on desktop launcher on Raspberry PI ubuntu 20 so added a chmod command
+it also did not forceupdate the menus after adding the entry. have added a forceupdate command.
+xdg functioned as normal on mint and debian, just rpi ubuntu.
+
+Added error handling to exit if various commands return an error value.
 
 V2.1
 Had not tested it on a fresh machine and found a bug in the git installation routine.
@@ -13,5 +22,5 @@ installs desktop icon and menu entry
 
 V1.0
 Initial script.
-had to manually set distro.
+you had to manually set distro in a text editor and have git installed.
 

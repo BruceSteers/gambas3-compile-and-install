@@ -2,7 +2,7 @@
 
 # Script to ensure the fantastic Gambas3 basic can be compiled on various linux disrtros it supports.
 
-# Version 2.0
+Version="2.2"
 # Written by Bruce steers
 
 # Run this Script from terminal.
@@ -69,20 +69,19 @@ read
 
 GetGambasGitDir() {
 # Say hi, give info, ask user to select a gambas gitlab dir or download it.
-ZEN=$(which zenity)
-echo -e "\nWelcome to the my Gambas3 compiler setup script.\n
-This will setup your computer for compiling Gambas3 by cloning the latest version or
-allowing you to choose an existing clone on your disk, installing the required dependencies
-then running through the process of configuring and compiling and installing.
+
+echo -e "\nWelcome to the my Gambas3 compile and install setup script. V$Version\n
+This will setup your computer for compiling Gambas3 by cloning the latest version or allowing you to choose an existing clone on your disk, installing the required dependencies, then running through the process of configuring and compiling and installing.
 A y/n (yes/no) choice is asked before running all commands or 'a' can be typed for 'Yes to All'
-To abort press Ctrl-C at any time."
+To abort press Ctrl-C at any time.\n"
 
 if [ -e ".gitlab-ci.yml" ]; then
-REPLY="(current directory)"
+REPLY=$(pwd)
 echo "Gambas source folder detected as current dir.."
 else
-echo -e "A Gambas GitLab clone in needed...
-Type 'd' to download a gambas clone in the current dir (Note. git will be installed if not),"
+ZEN=$(which zenity)
+echo -e "A Gambas GitLab clone is now needed...
+Type 'd' to download a new gambas clone in the current dir (Note. git will be installed if not),"
 if [ ! -z "$ZEN" ]; then echo "Type 'b' to browse for an existing gambas gitlab clone dir"; fi
 echo -n "or type the directory name now: "
 read REPLY
@@ -105,8 +104,10 @@ REPLY=$(zenity --file-selection --title="Select you Gambas GitLab clone director
 elif [ "${REPLY,,}" = "d" ]; then
 if [ -z $(which git) ]; then
 eval sudo $INSTALLCOM git
+if [ $? -ne 0 ]; then ErrorOut "Install git failed"; fi
 fi
 git clone --depth=1 https://gitlab.com/gambas/gambas.git
+if [ $? -ne 0 ]; then ErrorOut "git cloning download failed"; fi
 ISNEW="yes"
 REPLY="gambas"
 fi
@@ -130,8 +131,10 @@ if [ ! "$ISNEW" = "yes" ]; then
  if [ "${ANSWER,,}" = "y" ]; then
   if [ -z $(which git) ]; then
   eval sudo $INSTALLCOM git
+  if [ $? -ne 0 ]; then ErrorOut "Install git failed"; fi
   fi
  git pull
+ if [ $? -ne 0 ]; then echo "git pull failed to update, continuing with current version"; fi
  fi
 fi
 
@@ -193,6 +196,12 @@ read ANSWER
 if [ "${ANSWER,,}" = "a" ]; then DONTASK="true"; ANSWER="y"; fi
 }
 
+ErrorOut() {
+echo "Error $1"
+echo -n "Press return to exit."
+read
+exit
+}
 
 # Main function...
 
@@ -215,30 +224,36 @@ if [ "$STATE" != "ok" ]; then
  echo "An error occured, Last state was $STATE"
  return
 fi
-echo "Dependencies command is as follows.."
-echo "$BSCRIPT"
+echo "Dependencies list is as follows.."
+echo "${BSCRIPT##*$INSTALLCOM}"
 Ask "Run dependency install?"
 if [ "${ANSWER,,}" = "y" ]; then
 sudo su -mc "$BSCRIPT"
+if [ $? -ne 0 ]; then ErrorOut "Dependency install failed"; fi
 fi
 
 Ask "Run './reconf-all' ?"
 if [ "${ANSWER,,}" = "y" ]; then
 ./reconf-all
+if [ $? -ne 0 ]; then ErrorOut "reconigure failed"; fi
 fi
 Ask "Run './configure' (y for yes, v for verbose error messages only) ?"
 if [ "${ANSWER,,}" = "y" ]; then
 ./configure $CONFIG
+if [ $? -ne 0 ]; then ErrorOut "./configure failed"; fi
 elif [ "${ANSWER,,}" = "v" ]; then
 ./configure $CONFIG >/dev/null
+if [ $? -ne 0 ]; then ErrorOut "./configure failed"; fi
 fi
 Ask "Run 'make' ?"
 if [ "${ANSWER,,}" = "y" ]; then
 make
+if [ $? -ne 0 ]; then ErrorOut "'make' command failed"; fi
 fi
 Ask "Run 'make install' ?"
 if [ "${ANSWER,,}" = "y" ]; then
 sudo make install
+if [ $? -ne 0 ]; then ErrorOut "'make install' command failed"; fi
 fi
 Ask "Install Icon, desktop launcher and menu item?"
 if [ "${ANSWER,,}" = "y" ]; then
@@ -247,10 +262,16 @@ xdg-mime install ./app/desktop/gambas3.appdata.xml --novendor
 Ask "Install a desktop launcher?"
 if [ "${ANSWER,,}" = "y" ]; then
 xdg-desktop-icon install ./app/desktop/gambas3.desktop --novendor
+chmod +x "$(xdg-user-dir)/Desktop/gambas3.desktop"
 fi
 Ask "Install a menu launcher?"
 if [ "${ANSWER,,}" = "y" ]; then
 xdg-desktop-menu install ./app/desktop/gambas3.desktop --novendor
+xdg-desktop-menu forceupdate
 fi
 fi
+
+echo -e "\nInstallation script now completed"
+echo -ne "hopefully all went well and Gambas3 is now compiled and installed correctly\nPress return to exit"
+read
 

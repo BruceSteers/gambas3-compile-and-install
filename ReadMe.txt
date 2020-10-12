@@ -2,7 +2,7 @@
 This is a script to help ensure the fantastic Gambas3 basic latest version can be compiled
 and installed on various linux disrtros it supports.
 
-Version 2.1
+Version 2.2
 Written by Bruce steers
 
 Intention/Introduction:
