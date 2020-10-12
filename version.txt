@@ -1,0 +1,17 @@
+Version history
+
+V2.1
+Had not tested it on a fresh machine and found a bug in the git installation routine.
+fixed.
+
+V2.0
+now auto-detects linux system, 
+detects if being run in gambas source folder
+installs git if missing.
+installs desktop icon and menu entry
+
+
+V1.0
+Initial script.
+had to manually set distro.
+

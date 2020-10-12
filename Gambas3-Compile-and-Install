@@ -1,0 +1,254 @@
+#!/usr/bin/env bash
+
+# Script to ensure the fantastic Gambas3 basic can be compiled on various linux disrtros it supports.
+
+# Version 2.0
+# Written by Bruce steers
+
+# Run this Script from terminal.
+# By default the script tries to detect the linux version running. If not working you can
+# un-comment (delete the '#') one of the lines below depending on the linux version you have.
+
+
+#BUILD="ubuntu-latest"
+#BUILD="debian-stable"
+#BUILD="archlinux"
+#BUILD="alpine"
+#BUILD="raspbian"
+
+#BUILD="archlinux-clang"
+
+#BUILD="debian-oldstable"
+#BUILD="debian-testing"
+#BUILD="debian-unstable"
+
+#BUILD="ubuntu-eoan"
+#BUILD="ubuntu-xenial"
+#BUILD="ubuntu-trusty"
+
+
+
+# =============  Do not edit below here =============
+
+GetDistro() {
+LINUXNAME=$(lsb_release -is); LINUXNAME=${LINUXNAME,,}
+LINUXVER=$(lsb_release -rs); LINUXVER=${LINUXVER%%.*}
+if [ "${LINUXNAME,,}" = "linuxmint" ]; then LINUXNAME="ubuntu"; TRUENAME="Linuxmint"; ISMINT="yes"; fi
+if [ "${LINUXNAME,,}" = "raspbian" ]; then LINUXNAME="debian"; TRUENAME="Raspian"; RASPI="yes"; fi
+if [ "$LINUXNAME" = "ubuntu" ]; then
+ if [ $LINUXVER -le 14 ]; then LINUXNAME="ubuntu-trusty"
+ elif [ $LINUXVER -le 16 ]; then LINUXNAME="ubuntu-xenial"
+ elif [ $LINUXVER -le 19 ]; then LINUXNAME="ubuntu-eoan"
+ else 
+ LINUXNAME="ubuntu-latest"
+ fi
+fi
+if [ "$LINUXNAME" = "debian" ]; then
+ if [ $LINUXVER -lt 10 ]; then LINUXNAME="debian-oldstable"
+ elif [ $LINUXVER -eq 11 ]; then LINUXNAME="debian-testing"
+ elif [ $LINUXVER -gt 11 ]; then LINUXNAME="debian-unstable"
+ else 
+ LINUXNAME="debian-stable"
+ fi
+fi
+BUILD=$LINUXNAME
+if [ "$LINUXNAME" = "alpine" ]; then INSTALLCOM="apk add --no-progress -q"
+elif [[ "$LINUXNAME" = "archlinux"* ]]; then INSTALLCOM="pacman -Syu --needed --noconfirm"
+else INSTALLCOM="apt-get install -y"
+fi
+
+echo -ne "Building environment for compiling Gambas on autodetected system..
+System type '$BUILD'"
+if [ ! -z "$TRUENAME" ]; then echo -ne " ($TRUENAME)"; fi
+echo -ne "\nIf '$BUILD' is NOT your system press Ctrl-C to exit now and un-comment one of the #BUILD=
+lines in the begining of this script to manually set your system type. (press return to continue) "
+read
+}
+
+GetGambasGitDir() {
+# Say hi, give info, ask user to select a gambas gitlab dir or download it.
+ZEN=$(which zenity)
+echo -e "\nWelcome to the my Gambas3 compiler setup script.\n
+This will setup your computer for compiling Gambas3 by cloning the latest version or
+allowing you to choose an existing clone on your disk, installing the required dependencies
+then running through the process of configuring and compiling and installing.
+A y/n (yes/no) choice is asked before running all commands or 'a' can be typed for 'Yes to All'
+To abort press Ctrl-C at any time."
+
+if [ -e ".gitlab-ci.yml" ]; then
+REPLY="(current directory)"
+echo "Gambas source folder detected as current dir.."
+else
+echo -e "A Gambas GitLab clone in needed...
+Type 'd' to download a gambas clone in the current dir (Note. git will be installed if not),"
+if [ ! -z "$ZEN" ]; then echo "Type 'b' to browse for an existing gambas gitlab clone dir"; fi
+echo -n "or type the directory name now: "
+read REPLY
+
+  if [ -z "$REPLY" ]; then
+  echo -n "No input given, aborting, press return to quit. "
+  read
+  exit
+  fi
+
+if [ "${REPLY,,}" = "b" ]; then
+REPLY=$(zenity --file-selection --title="Select you Gambas GitLab clone directory" --filename="$HOME/gambas" --directory 2>/dev/null)
+
+  if [ -z "$REPLY" ]; then
+  echo -n "User Cancelled, press return to quit. "
+  read
+  exit
+  fi
+
+elif [ "${REPLY,,}" = "d" ]; then
+if [ -z $(which git) ]; then
+eval sudo $INSTALLCOM git
+fi
+git clone --depth=1 https://gitlab.com/gambas/gambas.git
+ISNEW="yes"
+REPLY="gambas"
+fi
+cd "$REPLY"
+if [ ! -e ".gitlab-ci.yml" ]; then
+echo -n "Error, $REPLY is not a Gambas GitLab clone!
+This script will only work on a true gitlab clone
+un unpacked archive does not contain the required data.
+Cannot continue on this dir. press return to exit..."
+read
+exit
+fi
+
+fi  # end if asking for gambas dir.
+
+echo "Working in Directory: $REPLY"
+
+
+if [ ! "$ISNEW" = "yes" ]; then
+ Ask "Run 'git pull' to ensure latest version?"
+ if [ "${ANSWER,,}" = "y" ]; then
+  if [ -z $(which git) ]; then
+  eval sudo $INSTALLCOM git
+  fi
+ git pull
+ fi
+fi
+
+TEXT=$(cat ./.gitlab-ci.yml)
+TIFS=$IFS
+IFS=$'\n'
+ read -d '£' -a TARY <<< $TEXT£
+CNT=0; MODE="search"; BSCRIPT=""
+IFS=$TIFS
+
+while [ $CNT -lt ${#TARY[@]} ]; do
+
+TRIMED=$(echo ${TARY[$CNT]##*( )})
+# echo "$TRIMED"
+if [ "$MODE" = "search" ]; then  # go through file looking for our dist
+
+ if [ "$TRIMED" = "build:$BUILD:" ]; then
+ STATE="dist $BUILD found, looking for install commands"
+ MODE="getlines"
+ fi
+
+elif [ "$MODE" = "getlines" ]; then
+ if [ "$TRIMED" = "- >" ]; then
+  MODE="readlines"
+ fi
+
+elif [ "$MODE" = "readlines" ]; then
+ if [ ! -z "$TRIMED" ]; then
+  if [ "$TRIMED" = "script:" ]; then
+  BSCRIPT=$(echo ${BSCRIPT##*( )})
+  STATE="looking for configure line"
+  MODE="getconfigure"
+  else
+  BSCRIPT="$BSCRIPT $TRIMED"
+  fi
+ fi
+
+elif [ "$MODE" = "getconfigure" ]; then
+ if [[ "$TRIMED" = *"./configure"* ]]; then
+ STATE="./configure found"
+ CONFIG="${TRIMED##*./configure }"
+
+ if [ "$RASPI" = "yes" ]; then
+  BSCRIPT=${BSCRIPT%% qtwebengine5-dev*}${BSCRIPT##*qtwebengine5-dev}
+  CONFIG="$CONFIG --disable-qt5webview"
+ fi
+ STATE="ok"
+ return
+ fi
+fi
+((CNT++))
+done
+}
+
+Ask () {
+if [ "$DONTASK" = "true" ]; then ANSWER="y"; return; fi
+echo -ne "\n$1 (y/n/a=yes to all) :"
+read ANSWER
+if [ "${ANSWER,,}" = "a" ]; then DONTASK="true"; ANSWER="y"; fi
+}
+
+
+# Main function...
+
+# check user uncomments the build variable
+GetDistro
+
+if [ -z "$BUILD" ]; then
+echo "First you must load this file into a text editor
+and Un-Comment the line that says what version of linux you are using.
+Then try again.
+Press return to finish."
+read
+exit
+fi
+
+# call the function to get the gambas git dir and get the distro specific commands from it.
+GetGambasGitDir
+
+if [ "$STATE" != "ok" ]; then
+ echo "An error occured, Last state was $STATE"
+ return
+fi
+echo "Dependencies command is as follows.."
+echo "$BSCRIPT"
+Ask "Run dependency install?"
+if [ "${ANSWER,,}" = "y" ]; then
+sudo su -mc "$BSCRIPT"
+fi
+
+Ask "Run './reconf-all' ?"
+if [ "${ANSWER,,}" = "y" ]; then
+./reconf-all
+fi
+Ask "Run './configure' (y for yes, v for verbose error messages only) ?"
+if [ "${ANSWER,,}" = "y" ]; then
+./configure $CONFIG
+elif [ "${ANSWER,,}" = "v" ]; then
+./configure $CONFIG >/dev/null
+fi
+Ask "Run 'make' ?"
+if [ "${ANSWER,,}" = "y" ]; then
+make
+fi
+Ask "Run 'make install' ?"
+if [ "${ANSWER,,}" = "y" ]; then
+sudo make install
+fi
+Ask "Install Icon, desktop launcher and menu item?"
+if [ "${ANSWER,,}" = "y" ]; then
+xdg-icon-resource install --size 48 ./app/desktop/gambas3.png --novendor
+xdg-mime install ./app/desktop/gambas3.appdata.xml --novendor
+Ask "Install a desktop launcher?"
+if [ "${ANSWER,,}" = "y" ]; then
+xdg-desktop-icon install ./app/desktop/gambas3.desktop --novendor
+fi
+Ask "Install a menu launcher?"
+if [ "${ANSWER,,}" = "y" ]; then
+xdg-desktop-menu install ./app/desktop/gambas3.desktop --novendor
+fi
+fi
+
