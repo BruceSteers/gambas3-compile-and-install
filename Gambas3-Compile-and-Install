@@ -2,7 +2,7 @@
 
 # Script to ensure the fantastic Gambas3 basic can be compiled on various linux disrtros it supports.
 
-Version="2.3"
+Version="2.4"
 # Written by Bruce steers
 
 # Run this Script from terminal.
@@ -30,14 +30,14 @@ Version="2.3"
 
 # =============  Do not edit below here =============
 
-AskDistro() {
-beep
 DISTLIST=("debian-stable" "debian-oldstable" "debian-testing" "debian-unstable" "raspbian" "ubuntu-latest"
 "ubuntu-eoan" "ubuntu-xenial" "ubuntu-trusty" "archlinux" "archlinux-clang" "alpine")
+
+AskDistro() {
+beep
 CNT=0
 clear
-echo -e "\nError, Your linux '$BUILD' does not match any in the list!"
-echo -e " Please select one from the list below that best descripes your linux or press Ctrl-C to exit..\n"
+echo -e "\n Please select from the list below what best descripes your linux or press Ctrl-C to exit..\n"
 while [ $CNT -lt ${#DISTLIST[@]} ]; do
 
 echo "- $CNT: ${DISTLIST[$CNT]}"
@@ -45,10 +45,18 @@ echo "- $CNT: ${DISTLIST[$CNT]}"
 done
 echo -en "\nType the number that best matches your linux: "
 read REPLY
+if [ -z "$REPLY" ]; then ErrorOut ""; fi
 BUILD=${DISTLIST[$REPLY]}
 GetDistro "force"
 }
 
+CheckDistro() {
+CNT=0; FOUNDDISTRO="no"
+while [ $CNT -lt ${#DISTLIST[@]} ]; do
+if [ "${DISTLIST[$CNT]}" = "$BUILD" ]; then FOUNDDISTRO="yes"; return; fi
+((CNT++))
+done
+}
 
 GetDistro() {
 if [ "$1" != "force" ]; then
@@ -62,12 +70,13 @@ LINUXVER=$(lsb_release -rs); LINUXVER=${LINUXVER%%.*}
 
 if [ "$LINUXNAME" = "linuxmint" ]; then LINUXNAME="ubuntu"; TRUENAME="Linuxmint"; ISMINT="yes"; fi
 if [ "$LINUXNAME" = "raspbian" ]; then LINUXNAME="debian"; TRUENAME="Raspian"; RASPI="yes"; fi
+if [ "$LINUXNAME" = "manjarolinux" ]; then LINUXNAME="archlinux"; TRUENAME="ManjaroLinux"; RASPI="yes"; fi
 
 if [ "$LINUXNAME" = "ubuntu" ]; then
  if [ $LINUXVER -le 14 ]; then LINUXNAME="ubuntu-trusty"
  elif [ $LINUXVER -le 16 ]; then LINUXNAME="ubuntu-xenial"
  elif [ $LINUXVER -le 19 ]; then LINUXNAME="ubuntu-eoan"
- else 
+ else
  LINUXNAME="ubuntu-latest"
  fi
 fi
@@ -75,30 +84,33 @@ if [ "$LINUXNAME" = "debian" ]; then
  if [ $LINUXVER -lt 10 ]; then LINUXNAME="debian-oldstable"
  elif [ $LINUXVER -eq 11 ]; then LINUXNAME="debian-testing"
  elif [ $LINUXVER -gt 11 ]; then LINUXNAME="debian-unstable"
- else 
+ else
  LINUXNAME="debian-stable"
  fi
 fi
 BUILD=$LINUXNAME
 if [ "$LINUXNAME" = "alpine" ]; then INSTALLCOM="apk add --no-progress -q"
 elif [[ "$LINUXNAME" = "archlinux"* ]]; then INSTALLCOM="pacman -Syu --needed --noconfirm"
-else INSTALLCOM="apt-get install -y"
+else
+INSTALLCOM="apt-get install -y"
 fi
 BUILDNAME="$BUILD"
 if [ ! -z "$TRUENAME" ]; then BUILDNAME="$BUILD ($TRUENAME)"; fi
 
-echo -ne "Building environment for compiling Gambas on autodetected system..\n
-System type '$BUILDNAME'\n\nIf '$BUILDNAME' is NOT your system press Ctrl-C to exit now and un-comment one of the #BUILD=
-lines in the begining of this script to manually set your system type. (press return to continue) "
-read
+CheckDistro
+if [ "$FOUNDDISTRO" = "no" ]; then AskDistro; return; fi
+echo -ne "Auto-detected linux system type for compiling Gambas3..\n
+System type '$BUILDNAME'\n\nIf '$BUILDNAME' is NOT your system type 's' to 'Select' your system type or press Ctrl-C to exit and un-comment one of the '#BUILD=name' lines in the begining of this script to manually set your system type.\n(Type s or press return to continue) :"
+read ANS
+if [ "${ANS,,}" = "s" ]; then AskDistro; return; fi
 }
 
 GetGambasGitDir() {
 # Say hi, give info, ask user to select a gambas gitlab dir or download it.
-
+clear
 echo -e "\nWelcome to the my Gambas3 compile and install setup script. V$Version\n
 This will setup your computer for compiling Gambas3 by cloning the latest version or allowing you to choose an existing clone on your disk, installing the required dependencies, then running through the process of configuring and compiling and installing.
-A y/n (yes/no) choice is asked before running all commands or 'a' can be typed for 'Yes to All'
+A y/n (yes/no) choice is asked before running all commands\nor 'a' can be typed for 'Yes to All'
 To abort press Ctrl-C at any time.\n"
 
 if [ -e ".gitlab-ci.yml" ]; then
@@ -107,9 +119,9 @@ echo "Gambas source folder detected as current dir.."
 else
 ZEN=$(which zenity)
 echo -e "A Gambas GitLab clone directory is now needed...
-Type 'd' to download a new gambas clone folder in the current dir (Note. git will be installed if needed),"
-if [ ! -z "$ZEN" ]; then echo "Type 'b' to browse for an existing gambas gitlab clone dir"; fi
-echo -n "or type the directory name now: "
+Type 'd' to download a new gambas clone folder now. (Note. git will be installed if needed)\nOr..."
+if [ ! -z "$ZEN" ]; then echo -e "Type 'b' to browse for an existing gambas gitlab clone dir.\nOr..."; fi
+echo -n "Type the directory name now: "
 read REPLY
 
 if [ -z "$REPLY" ]; then ErrorOut "No input given, aborting."; fi
@@ -120,10 +132,7 @@ REPLY=$(zenity --file-selection --title="Select you Gambas GitLab clone director
 if [ -z "$REPLY" ]; then ErrorOut "User Cancelled."; fi
 
 elif [ "${REPLY,,}" = "d" ]; then
-if [ -z $(which git) ]; then
- eval sudo $INSTALLCOM git
- if [ $? -ne 0 ]; then ErrorOut "Install git failed"; fi
-fi
+CheckPackage "git"
 
 echo -en "\nEnter name for downloaded folder or press return for 'gambas' in the current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/git/gambas-main)\nName: "
 read REPLY
@@ -140,19 +149,17 @@ un unpacked archive does not contain the required data.\nCannot continue on this
 fi
 
 fi  # end if asking for gambas dir.
-
-echo "Working in Directory: $REPLY"
-
+clear
+echo -e "\n Okay, Working in the following directory...\n'$REPLY'\n\nA Gambas3 Version $(cat ./VERSION) source dir."
 
 if [ ! "$ISNEW" = "yes" ]; then
- Ask "Run 'git pull' to ensure latest version?"
+ Ask "Run 'git pull' to check for recent commits?"
  if [ "${ANSWER,,}" = "y" ]; then
-  if [ -z $(which git) ]; then
-  eval sudo $INSTALLCOM git
-  if [ $? -ne 0 ]; then ErrorOut "Install git failed"; fi
-  fi
+  CheckPackage "git"
  git pull
  if [ $? -ne 0 ]; then echo "git pull failed to update, continuing with current version"; fi
+sleep 1
+clear
  fi
 fi
 
@@ -188,6 +195,8 @@ elif [ "$MODE" = "readlines" ]; then
   STATE="commands listed, looking for configure line..."
   MODE="getconfigure"
   else
+  if [[ "$TRIMED" = *"&&"* ]]; then TRIMED=${TRIMED##*&& }; fi
+  # if [[ "$TRIMED" = "pacman"* ]]; then TRIMED="pacman -S --noconfirm"; fi
   BSCRIPT="$BSCRIPT $TRIMED"
   fi
  fi
@@ -207,6 +216,33 @@ elif [ "$MODE" = "getconfigure" ]; then
 fi
 ((CNT++))
 done
+}
+
+VitalCommand() {
+eval "$1"
+ if [ $? -ne 0 ]; then ErrorOut "$2"; fi
+}
+
+CheckApt() {
+if [[ "$INSTALLCOM" = "apt-get"* ]]; then
+ if [ "$APTUPDATED" != "yes" ]; then
+ VitalCommand "sudo apt-get update" "Updating Apt failed"
+ APTUPDATED="yes"
+ fi
+elif [[ "$INSTALLCOM" = "pacman"* ]]; then
+ if [ "$APTUPDATED" != "yes" ]; then
+ VitalCommand "sudo pacman -Syu --noconfirm --needed" "Updating database failed"
+ APTUPDATED="yes"
+ fi
+fi
+}
+
+CheckPackage() {
+if [ -z $(which $1) ]; then
+CheckApt
+VitalCommand "sudo $INSTALLCOM $1" "Install $1 failed"
+fi
+
 }
 
 Ask () {
@@ -233,44 +269,45 @@ GetGambasGitDir
 
 if [ "$STATE" != "ok" ]; then
  if [ "$BUILDFOUND" != "yes" ]; then
-  echo -e "Could not find distro $BUILD in the data file!\nYou could try Un-Commenting the line that says what 
-version of linux you are using in this script and try again. or select one from this list..."
+  echo -e "Could not find distro $BUILD in the data file!\nYou could try Un-Commenting the line that says what version of linux you are using in this script and try again. or select one from this list..."
   AskDistro
   GetGambasGitDir
   else
   ErrorOut "An error occured finding finding the data, Last message was $STATE"
   fi
  fi
-echo "Dependencies list is as follows.."
-echo "${BSCRIPT##*$INSTALLCOM}"
-Ask "Run dependency install?"
+
+echo -e "Dependencies.\n The following packages are needed to compile Gambas and will be installed if not installed already..\n"
+DEPS=${BSCRIPT##*$INSTALLCOM }
+echo "$DEPS"
+Ask "Run package dependency install?"
 if [ "${ANSWER,,}" = "y" ]; then
-sudo su -mc "$BSCRIPT"
-if [ $? -ne 0 ]; then ErrorOut "Dependency install failed"; fi
+CheckApt
+#echo "$BSCRIPT"
+if [[ "$INSTALLCOM" = "pacman"* ]]; then
+VitalCommand "sudo pacman -Svq --needed $DEPS" "Dependency install failed"
+else
+VitalCommand "sudo $BSCRIPT" "Dependency install failed"
+fi
 fi
 
 Ask "Run './reconf-all' ?"
 if [ "${ANSWER,,}" = "y" ]; then
-./reconf-all
-if [ $? -ne 0 ]; then ErrorOut "reconigure failed"; fi
+VitalCommand "./reconf-all" "reconigure failed"
 fi
 Ask "Run './configure' (y for yes, v for verbose error messages only) ?"
 if [ "${ANSWER,,}" = "y" ]; then
-./configure $CONFIG
-if [ $? -ne 0 ]; then ErrorOut "./configure failed"; fi
+VitalCommand "./configure $CONFIG" "./configure failed"
 elif [ "${ANSWER,,}" = "v" ]; then
-./configure $CONFIG >/dev/null
-if [ $? -ne 0 ]; then ErrorOut "./configure failed"; fi
+VitalCommand "./configure $CONFIG >/dev/null" "./configure failed"
 fi
 Ask "Run 'make' ?"
 if [ "${ANSWER,,}" = "y" ]; then
-make
-if [ $? -ne 0 ]; then ErrorOut "'make' command failed"; fi
+VitalCommand "make" "'make' command failed"
 fi
 Ask "Run 'make install' ?"
 if [ "${ANSWER,,}" = "y" ]; then
-sudo make install
-if [ $? -ne 0 ]; then ErrorOut "'make install' command failed"; fi
+VitalCommand "sudo make install" "'make install' command failed"
 fi
 Ask "Install Icon, desktop launcher and menu item?"
 if [ "${ANSWER,,}" = "y" ]; then

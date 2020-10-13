@@ -2,7 +2,7 @@
 This is a script to help ensure the fantastic Gambas3 basic latest version can be compiled
 and installed on various linux disrtros it supports.
 
-Version 2.3
+Version 2.4
 Written by Bruce steers
 
 Intention/Introduction:
@@ -22,7 +22,14 @@ With this new knowledge I have made a shell script that does the following...
 # Offers yes or no options to run all commands needed to compile/install Gambas3
    from the './reconf-all' to the 'make install'
 # Offers to make a desktop icon and/or a menu item.
-# Supports Ubuntu, Mint, Debian, Raspbian, Archlinux, Alpine
+# Supports..
+Ubuntu, 
+LinuxMint, 
+Debian, 
+Raspbian, 
+Archlinux, 
+ManjaroLinux
+Alpine
 
 
 How to use...
