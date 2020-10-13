@@ -4,7 +4,7 @@ Version/Revision history
 V2.4
 Added ManjaroLinux and bug-tested the archlinux install.
 Had to tweak the way pacman was called as updating needed to be done as a
-separate command form installing on a fresh system.
+separate command from installing on a fresh system.
 
 V2.3
 Added feature to show a list of supported linux's and ask user to select 
