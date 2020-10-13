@@ -1,6 +1,12 @@
 
 Version/Revision history
 
+V2.3
+Added feature to show a list of supported linux's and ask user to select 
+best matching distro if users version is not found.
+
+Added option to enter a different folder name when downloading a new clone.
+it defaults to 'gambas' in the current dir but a different path/name may be used now.
 
 V2.2
 xdg did not set correct +x flags on desktop launcher on Raspberry PI ubuntu 20 so added a chmod command

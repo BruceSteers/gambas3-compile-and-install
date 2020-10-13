@@ -2,7 +2,7 @@
 This is a script to help ensure the fantastic Gambas3 basic latest version can be compiled
 and installed on various linux disrtros it supports.
 
-Version 2.2
+Version 2.3
 Written by Bruce steers
 
 Intention/Introduction:
@@ -47,8 +47,10 @@ it from there or it will ask to either download/clone to the current dir or you 
 select an existing dir on your disk.
 
 By default the script tries to detect the linux version you are running. If that's not 
-working you can un-comment (delete the '#') one of the #BUILD= lines at the begining of
-the script to manually set the linux version you have.
+working it gives a list of supported linux types to choose from or you can un-comment
+(delete the '#') on the #BUILD= lines at the begining of the script to manually set the 
+linux version you have.
+
 Supported variations are...
 Ubuntu/Mint (various versions), Debian (various versions), Raspbian, Archlinux, Alpine
 
@@ -57,6 +59,8 @@ differntiate between archlinux and archlinux-clang
 
 Once your linux is detected if not run from the Gambas source folder you are asked to 
 download a new clone or select an existing clone dir.
+If downloading a new clone you are asked for a path/name for the download folder
+or it defaults to 'gambas' in the current dir.
 
 Note. if your Gambas source folder is not a GitLab clone but an unpacked tarball it
 may be missing a vital ".gitlab-ci.yml" file.
