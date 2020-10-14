@@ -17,19 +17,20 @@ This file contains up to date lists of package requirements for various systems.
 
 With this new knowledge I have made a shell script that does the following...
 
-# Offers to download/clone the latest Gambas3 or lets you select an existing folder.
-# Offers to install all dependencies/packages needed for compilation/install.
-# Offers yes or no options to run all commands needed to compile/install Gambas3
++ Offers to download/clone the latest Gambas3 or lets you select an existing folder.
++ Offers to install all dependencies/packages needed for compilation/install.
++ Offers yes or no options to run all commands needed to compile/install Gambas3
    from the './reconf-all' to the 'make install'
-# Offers to make a desktop icon and/or a menu item.
-# Supports..
-Ubuntu, 
-LinuxMint, 
-Debian, 
-Raspbian, 
-Archlinux, 
-ManjaroLinux
-Alpine
++ Offers to make a desktop icon and/or a menu item.
+
+Supports..
++ Ubuntu, 
++ LinuxMint, 
++ Debian, 
++ Raspbian, 
++ Archlinux, 
++ ManjaroLinux
++ Alpine
 
 
 How to use...
