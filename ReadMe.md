@@ -60,9 +60,9 @@ working it gives a list of supported linux types to choose from or you can un-co
 linux version you have.
 
 Supported variations are...
-Ubuntu/Mint (various versions), Debian (various versions), Raspbian, Archlinux, Alpine
+Ubuntu/Mint (various versions), Debian (various versions), Raspbian, Archlinux, Manjaro, Alpine
 
-Note. if you are using Archlinux please set manually as i do not know how to 
+Note. if you are using Archlinux-clang you may need to set manually as i do not know how to 
 differntiate between archlinux and archlinux-clang
 
 Once your linux is detected if not run from the Gambas source folder you are asked to 
@@ -71,7 +71,7 @@ If downloading a new clone you are asked for a path/name for the download folder
 or it defaults to 'gambas' in the current dir.
 
 Note. if your Gambas source folder is not a GitLab clone but an unpacked tarball it
-may be missing a vital ".gitlab-ci.yml" file.
+may be missing the vital ".gitlab-ci.yml" file.
 To fix this go to https://gitlab.com/gambas/gambas/-/blob/master/.gitlab-ci.yml
 and download the .gitlab-ci.yml file and copy it to your Gambas source directory.
 
@@ -99,7 +99,7 @@ The commands come in the following order...
 
  IMPORTANT: if you already have Gambas on your system either installed by using your 
   package manager to install the distro's default version or via adding the PPA then
-  it MUST be completely removed first or you will get conflicts.
+  it MUST be completely removed **first** or you will get conflicts.
   on debian/ubuntu type 'sudo apt-get purge gambas3*'
   After installing from compilation Gambas3 will not show as installed in your
   package manager.
