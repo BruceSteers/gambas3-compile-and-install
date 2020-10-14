@@ -4,6 +4,9 @@ and installed on various linux disrtros it supports.
 
 Version 2.4
 Written by Bruce steers
+Note. This script is not written by any of the gambas team members just a Gambas user/supporter.
+So please do not contact them for support if you have problems with running this script. Thank you.
+
 
 Intention/Introduction:
 Compiling and installing Gambas3 from source can be a bit tricky if you do not have all the correct software and dependencies you need installed first.
