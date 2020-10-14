@@ -2,12 +2,12 @@
 This is a script to help ensure the fantastic Gambas3 basic latest version can be compiled
 and installed on various linux disrtros it supports.
 
-Version 2.4\
+Version 2.5.1\
 Written by Bruce steers <g3compiler@bws.org.uk>\
 Note. This script is not written by any of the gambas team members just a Gambas user/supporter.\
 So please do not contact them for support if you have problems with running this script. Thank you.
 
-
+<pre>
 Intention/Introduction:
 Compiling and installing Gambas3 from source can be a bit tricky if you do not have all the correct software and dependencies you need installed first.
 There is installation info on the Gambas wiki website giving a list of required packages for 
@@ -17,7 +17,7 @@ developers mailing list for some "expert" advice.
 I was told by the main Gambas developer Benoît Minisini of a file that exists in the GitLab 
 repository called ".gitlab-ci.yml" that is used when a "ppa" type install would happen. 
 This file contains up to date lists of package requirements for various systems.
-
+</pre>
 With this new knowledge I have made a shell script that does the following...
 
 + Offers to download/clone the latest Gambas3 or lets you select an existing folder.
