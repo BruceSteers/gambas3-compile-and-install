@@ -1,18 +1,10 @@
 
 Version/Revision history
 
-V2.5.1
-Added testing branch to github for latest beta version.
-
-Now it auto detects if you have existing gambas installed via a package manager.
-Has not been done for alpine linux yet but works the others using apt or pacman.
-Lists all packages that need to be removed and removes them just before running 'make install'
-
-
 V2.4
 Added ManjaroLinux and bug-tested the archlinux install.
 Had to tweak the way pacman was called as updating needed to be done as a
-separate command from installing on a fresh system.
+separate command form installing on a fresh system.
 
 V2.3
 Added feature to show a list of supported linux's and ask user to select 
