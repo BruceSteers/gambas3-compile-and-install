@@ -9,7 +9,9 @@ So please do not contact them for support if you have problems with running this
 
 <pre>
 Intention/Introduction:
-Compiling and installing Gambas3 from source can be a bit tricky if you do not have all the correct software and dependencies you need installed first.
+Compiling and installing Gambas3 from source can be a bit tricky if you do not have all
+the correct software and dependencies you need installed first.
+
 There is installation info on the Gambas wiki website giving a list of required packages for 
 each distro but it is not auto-created and needs updating at times as things change.
 Whilst trying to get the Gambas wiki pages for Debian and Raspbian up to date I asked on the 
@@ -17,8 +19,9 @@ developers mailing list for some "expert" advice.
 I was told by the main Gambas developer Benoît Minisini of a file that exists in the GitLab 
 repository called ".gitlab-ci.yml" that is used when a "ppa" type install would happen. 
 This file contains up to date lists of package requirements for various systems.
-</pre>
+
 With this new knowledge I have made a shell script that does the following...
+</pre>
 
 + Offers to download/clone the latest Gambas3 or lets you select an existing folder.
 + Download can use git to clone, or curl to download archive and unzip.
