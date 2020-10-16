@@ -2,7 +2,7 @@
 This is a script to help ensure the fantastic Gambas3 basic latest version can be compiled
 and installed on various linux disrtros it supports.
 
-Version 2.5.2\
+Version 2.5.3\
 Written by Bruce steers <g3compiler@bws.org.uk>\
 Note. This script is not written by any of the gambas team members just a Gambas user/supporter.\
 So please do not contact them for support if you have problems with running this script. Thank you.
@@ -96,21 +96,21 @@ y = YES, n = NO (default if no answer given) , a = Ask no more and say Yes to Al
 You can abort at any time pressing Ctrl-C.
 The commands come in the following order...
 
-"Run dependency install?" 
+** "Run dependency install?" 
  Installs ALL packages/dependencies needed to compile Gambas3.
 
-"Run './reconf-all' ?" 
+** "Run './reconf-all' ?" 
  Sets up the compiling environment, needed first time, or to update environment.
 
-"Run './configure' (y for yes, v for verbose error messages only) ?"
+** "Run './configure' (y for yes, v for verbose error messages only) ?"
  Configures all the source code ready for compilation.
  (./configere produces a lot of output text making error messages hard to find,
  type 'v' to only show the error messages not the rest of the output.)
  
-"Run 'make' ?"
+** "Run 'make' ?"
  Compiles ALL source code ready for installation.
 
-"Run 'make install' ?"
+** "Run 'make install' ?"
  Installs Gambas into the System.
 
  IMPORTANT: if you already have Gambas3 on your system either installed by using your 
@@ -121,12 +121,28 @@ The commands come in the following order...
   After installing from compilation Gambas3 will not show as installed by your
   package manager.
 
-"Install Icon, desktop launcher and menu item?"
+** "Install Icon, desktop launcher and menu item?"
  If yes the Gambas Icon is installed then you are given 2 options...
 
-"Install a desktop launcher?"
-"Install a menu launcher?"
+** "Install a desktop launcher?"
+** "Install a menu launcher?"
 
-Icon/Launcher installation uses xdg
+(Icon/Launcher installation uses xdg)
 
+A log file /home/username/gambas-compile-install.log is saved holding all the information about
+commands run in the script. This was added at the request of the gambas developers so they can ask you
+for the output message record if you are getting errors.
 
+Note...
+The Gambas team are very busy and did not make this script so if you
+have problems please contact me about it and not them.
+
+Unless you have problems occuring during the running of the commands 
+./reconf-all 
+./configure 
+'make' 
+'make install'
+
+Everything else outside of those commands is for me to resolve :)
+Thank you
+Bruce Steers

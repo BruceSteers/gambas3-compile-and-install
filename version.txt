@@ -1,6 +1,10 @@
 
 Version/Revision history
 
+Version 2.5.3\
+The temporary sudo timeout lengthening file was not getting deleted on Manjaro (archlinux)
+changed the way the file is searched for using "ls" now instead of just "if exists"
+
 V2.5.2
 Added ability to use git to clone or curl to download archive and unpack.
 
@@ -10,6 +14,9 @@ typed 'a' (Yes to all) then it shouldn't stop and ask for password when
 'make install' is executed and timeout if you are not at the keyboard.
 
 Added a Ctrl-C trapping function to ensure restoring the sudo timeout on exit.
+
+Added log file creation, all vital (gambas team related) functions output text
+to the terminal but also saves a log file in the /home/username/ folder.
 
 V2.5.1
 Added testing branch to github for latest beta version.
