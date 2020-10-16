@@ -39,7 +39,7 @@ Supports..
 + Raspbian, 
 + Archlinux, 
 + ManjaroLinux
-+ Alpine
++ Alpine (untested and supports badly, I do not reccomend using it on an Alpine system)
 
 
 How to use...
