@@ -32,6 +32,7 @@ Version="2.5.1"
 
 DISTLIST=("debian-stable" "debian-oldstable" "debian-testing" "debian-unstable" "raspbian" "ubuntu-latest"
 "ubuntu-eoan" "ubuntu-xenial" "ubuntu-trusty" "archlinux" "archlinux-clang" "alpine")
+LOG="$HOME/gambas-compile-install.log"
 
 AskDistro() {
 beep
@@ -125,10 +126,8 @@ if [ -z "$ZEN" ]; then
  if [ "${ANSWER,,}" = "y" ]; then CheckPackage "zenity"; fi
 ZEN=$(which zenity 2>/dev/null)
 fi
-
-echo -e "A Gambas GitLab clone directory is now needed...
-Type 'l' to download the "LATEST" commit. (Note. beta version)\nOr...
-Type 'd' to download the last stable release. (Note. git will be installed if needed)\nOr..."
+clear
+echo -e "A Gambas GitLab clone directory is now needed...\nType 'd' to download from the Gambas website\nOr..."
 if [ ! -z "$ZEN" ]; then echo -e "Type 'b' to browse for an existing gambas gitlab clone dir.\nOr..."; fi
 echo -n "Type the directory name now: "
 read REPLY
@@ -141,23 +140,78 @@ REPLY=$(zenity --file-selection --title="Select you Gambas GitLab clone director
 if [ -z "$REPLY" ]; then ErrorOut "User Cancelled."; fi
 
 elif [ "${REPLY,,}" = "d" ]; then
-CheckPackage "git"
+clear
+echo -en "\nDownload option has been chosen. you have 4 choices..\n
+* Use 'git' to clone the latest 'stable' version. (recomended)\n* Use 'git' to clone the latest 'beta' gambas.
+* Use 'curl' do download the latest 'stable' archive and unpack it.\n* Use 'curl' do download the latest 'beta' archive and unpack it.
+\nType 'gs' or 'gb' for git stable or git beta.\nType 'cs' or 'cb' to curl stable or curl beta.
+\nOr just press return for git stable. : "
+read RPLY
 
-echo -en "\nEnter name for downloaded folder or press return for 'gambas' in the current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/git/gambas-main)\nName: "
-read REPLY
-if [ -z "$REPLY" ]; then REPLY="gambas"; fi
-git clone --depth=1 https://gitlab.com/gambas/gambas.git "$REPLY"
-if [ $? -ne 0 ]; then ErrorOut "git cloning download failed"; fi
-ISNEW="yes"
+  if [ "${REPLY,,}" = "cs" ]; then DLMODE="c"; DLTYPE="s"
+elif [ "${REPLY,,}" = "cb" ]; then DLMODE="c"; DLTYPE="b"
+elif [[ "${REPLY,,}" = "gs" ]] || [[ -z $REPLY ]]; then DLMODE="g"; DLTYPE="s"
+elif [ "${REPLY,,}" = "gb" ]; then DLMODE="g"; DLTYPE="b"
 fi
 
+if [ "$DLMODE" = "g" ]; then
+CheckPackage "git"
+
+echo -en "\nEnter name for downloaded folder or press return for 'gambas' in the current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/Downloads/gambas-main)\nName: "
+read REPLY
+if [ -z "$REPLY" ]; then REPLY="gambas"; fi
+ if [ "$DLTYPE" = "s" ]; then
+ git clone --depth=1 -b stable https://gitlab.com/gambas/gambas.git "$REPLY"
+ else
+ git clone --depth=1 https://gitlab.com/gambas/gambas.git "$REPLY"
+ fi
+ if [ $? -ne 0 ]; then ErrorOut "git cloning download failed"; fi
+ISNEW="yes"
+
+else  # DLMODE curl
+CheckPackage "curl"
+echo -en "\nEnter name for downloaded folder or press return for\n
+default 'gambas-stable' or 'gambas-main' in current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/Downloads/gambas-main)\nName: "
+read REPLY
+if [ -z "$REPLY" ]; then 
+REPLY="$(pwd)/gambas"; 
+if [ DLTYPE = "b" ]; then REPLY="$REPLY-main"; else REPLY="$REPLY-stable"; fi
+fi
+
+DLDIR="${REPLY%/*}"
+ if [ "$DLTYPE" = "b" ]; then 
+  DLFILE="https://gitlab.com/gambas/gambas/-/archive/master/gambas-master.zip"
+ else 
+  DLFILE="https://gitlab.com/gambas/gambas/-/archive/stable/gambas-stable.zip"
+ fi
+ANAME="${DLFILE##*/}"
+NNAME="${REPLY##*/}"
+echo "Downloading '$DLFILE' to '$DLDIR/$ANAME'"
+VitalCommand "curl '$DLFILE' -o '$DLDIR/$ANAME'"
+
+cd "$DLDIR"
+VitalCommand "unzip -o -q '$ANAME'"
+
+ANAME="${ANAME%.*}"
+NNAME="${NNAME%.*}"
+if [ "$ANAME" != "$NNAME" ]; then mv "$DLDIR/$ANAME" "$DLDIR/$NNAME"; fi
+NEWREPLY="$NNAME"
+ISNEW="yes"
+fi
+fi
+
+if [ ! -z "$NEWREPLY" ]; then REPLY="$NEWREPLY"; fi
+
+echo "Working in directory '$REPLY'"
 cd "$REPLY"
+
 if [ ! -e ".gitlab-ci.yml" ]; then
-ErrorOut "Error, $REPLY is not a Gambas GitLab clone!\nThis script will only work on a true gitlab clone
+ErrorOut "Error, Dir '$REPLY' is not a Gambas GitLab clone!\nThis script will only work on a true gitlab clone
 un unpacked archive does not contain the required data.\nCannot continue on this dir."
 fi
 
 fi  # end if asking for gambas dir.
+
 clear
 echo -e "\n Okay, Working in the following directory...\n'$REPLY'\n\nA Gambas3 Version $(cat ./VERSION) source dir."
 
@@ -215,10 +269,10 @@ elif [ "$MODE" = "getconfigure" ]; then
  CONFIG="${TRIMED##*./configure }"
 
  if [ "$RASPI" = "yes" ]; then
-  BSCRIPT=${BSCRIPT%% qtwebengine5-dev*}${BSCRIPT##*qtwebengine5-dev}
-  CONFIG="$CONFIG --disable-qt5webview"
+  RemovePackage "qtwebengine5-dev"
+  DisableInConf "qt5webview"
  fi
-
+ RemovePackage "git"
  STATE="ok"
  return
  fi
@@ -227,9 +281,19 @@ fi
 done
 }
 
+DisableInConf() {
+if [[ "$CONFIG " != *"--disable-$1 "* ]]; then CONFIG="$CONFIG --disable-$1"; fi
+}
+
+RemovePackage() {
+if [[ " $BSCRIPT " = *" $1 "* ]]; then BSCRIPT=${BSCRIPT%% $1*}${BSCRIPT##*$1}; fi
+}
+
 VitalCommand() {
-eval "$1"
+echo -e "\nLog: running command.. @ $(date|awk {'print $4'})\n'$1'\n" >>"$LOG"
+eval "$1 2>&1|tee --append '$LOG'"
  if [ $? -ne 0 ]; then ErrorOut "$2"; fi
+echo -e "Log: no errors.\n" >>"$LOG"
 }
 
 CheckApt() {
@@ -270,7 +334,15 @@ ErrorOut() {
 echo -e "\nError! $1"
 echo -n "Press return to exit."
 read
+CheckSudo
 exit 1
+}
+
+CheckSudo() {
+if [ -e "/etc/sudoers.d/g3make_temp" ]; then 
+sudo su -c "rm /etc/sudoers.d/g3make_temp"
+sudo -K
+fi
 }
 
 ProcessList() {
@@ -312,6 +384,28 @@ echo -en "\nWarning...\n\nThere are ${#LARY[@]} Gambas3 packages previously inst
 read
 }
 
+AskToUpSudo() {
+clear
+echo -ne "Compiling is about to start but can take a long time on slow machines.
+If you are not at the keyboard when the 'make install' is run it will sit asking
+for your password for a short time then timeout and fail.
+The default timeout for sudo is 15 minutes but we can up that temporarily while
+compilation is running, this way sudo will not ask you for your password but
+'make install' will still run with superuser rights.
+
+Up sudo timeout while the script runs? (y/n) : "
+read REPLY
+if [ "${REPLY}" = "y" ]; then
+sudo su -c 'echo -e "Defaults env_reset, timestamp_timeout=120\nDefaults insults\nDefaults secure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin\"" >/etc/sudoers.d/g3make_temp'
+if [ $? -ne 0 ]; then
+echo "unable to up sudo sorry." 
+else
+echo -e "sudo timeout updated temporarily to 2 hours\n"
+sudo false
+fi
+fi
+}
+
 CheckUninstallGambas() {
 if [ -z "$UNINSTALLGB" ]; then return; fi
 echo "\nUninstalling previous repository version of Gambas3 now."
@@ -328,9 +422,21 @@ elif [[ "$INSTALLCOM" = "apk"* ]]; then
 fi
 }
 
+function ctrl_c() {
+echo -en "\n** CTRL-C was pressed, exiting..."
+sleep 1
+CheckSudo
+exit
+}
+
 # Main function...
 clear
+echo -e "gambas-compile-and-install output log $(date)\n" >"$LOG"
+
+trap ctrl_c INT
+
 # auto check distro type if not manually set.
+
 GetDistro
 
 CheckForRepoGambas
@@ -348,6 +454,8 @@ if [ "$STATE" != "ok" ]; then
   fi
  fi
 
+AskToUpSudo
+
 echo -e "Dependencies.\n The following packages are needed to compile Gambas and will be installed if not installed already..\n"
 DEPS=${BSCRIPT##*$INSTALLCOM }
 echo "$DEPS"
@@ -361,16 +469,13 @@ else
 VitalCommand "sudo $BSCRIPT" "Dependency install failed"
 fi
 fi
-
 Ask "Run './reconf-all' ?"
 if [ "${ANSWER,,}" = "y" ]; then
 VitalCommand "./reconf-all" "reconigure failed"
 fi
-Ask "Run './configure' (y for yes, v for verbose error messages only) ?"
+Ask "Run './configure' ?"
 if [ "${ANSWER,,}" = "y" ]; then
 VitalCommand "./configure $CONFIG" "./configure failed"
-elif [ "${ANSWER,,}" = "v" ]; then
-VitalCommand "./configure $CONFIG >/dev/null" "./configure failed"
 fi
 Ask "Run 'make' ?"
 if [ "${ANSWER,,}" = "y" ]; then
@@ -400,7 +505,8 @@ chmod +x "$(xdg-user-dir)/Desktop/gambas3.desktop"
 fi
 fi
 
-echo -e "\nInstallation script now completed"
-echo -ne "hopefully all went well and Gambas3 is now compiled and installed correctly\nPress return to exit"
+echo -e "\nInstallation script now completed..."
+echo -ne "All seemed to go well and Gambas3 should now compiled and installed correctly\nPress return to exit :"
+CheckSudo
 read
 
