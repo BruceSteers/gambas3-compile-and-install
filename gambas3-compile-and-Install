@@ -339,7 +339,9 @@ exit 1
 }
 
 CheckSudo() {
-if [ -e "/etc/sudoers.d/g3make_temp" ]; then 
+SFILES=$(sudo su -c "ls /etc/sudoers.d")
+echo "$SFILES"
+if [[ "$SFILES" = *"g3make_temp"* ]]; then 
 sudo su -c "rm /etc/sudoers.d/g3make_temp"
 sudo -K
 fi
@@ -424,8 +426,8 @@ fi
 
 function ctrl_c() {
 echo -en "\n** CTRL-C was pressed, exiting..."
-sleep 1
 CheckSudo
+sleep 1
 exit
 }
 
