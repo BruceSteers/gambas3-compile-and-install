@@ -1,6 +1,16 @@
 
 Version/Revision history
 
+V2.5.2
+Added ability to use git to clone or curl to download archive and unpack.
+
+Added the offer to temporarily up sudo timeout to 2 hours during compilation.
+This is so that if you are letting all commands automatically run, Ie. if you
+typed 'a' (Yes to all) then it shouldn't stop and ask for password when 
+'make install' is executed and timeout if you are not at the keyboard.
+
+Added a Ctrl-C trapping function to ensure restoring the sudo timeout on exit.
+
 V2.5.1
 Added testing branch to github for latest beta version.
 
