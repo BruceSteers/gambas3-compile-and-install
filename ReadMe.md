@@ -2,7 +2,7 @@
 This is a script to help ensure the fantastic Gambas3 basic latest version can be compiled
 and installed on various linux disrtros it supports.
 
-Version 2.5.1\
+Version 2.5.2\
 Written by Bruce steers <g3compiler@bws.org.uk>\
 Note. This script is not written by any of the gambas team members just a Gambas user/supporter.\
 So please do not contact them for support if you have problems with running this script. Thank you.
