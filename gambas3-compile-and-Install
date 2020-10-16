@@ -340,7 +340,6 @@ exit 1
 
 CheckSudo() {
 SFILES=$(sudo su -c "ls /etc/sudoers.d")
-echo "$SFILES"
 if [[ "$SFILES" = *"g3make_temp"* ]]; then 
 sudo su -c "rm /etc/sudoers.d/g3make_temp"
 sudo -K
