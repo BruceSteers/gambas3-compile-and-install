@@ -116,8 +116,8 @@ if [ "${ANS,,}" = "s" ]; then AskDistro; return; fi
 
 
 DirString() {
- if [[ "$REPLY" = "~"*  ]]; then REPLY="${REPLY##*~}"; fi  # replace ~/ with homedir
- if [[ "$REPLY" = *"/"  ]]; then REPLY="$HOME${REPLY%*/}"; fi # trim trailing /
+ if [[ "$REPLY" = "~"*  ]]; then REPLY="$HOME${REPLY##*~}"; fi  # replace ~/ with homedir
+ if [[ "$REPLY" = *"/"  ]]; then REPLY="${REPLY%*/}"; fi # trim trailing /
 }
 
 
