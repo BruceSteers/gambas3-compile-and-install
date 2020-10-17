@@ -43,7 +43,7 @@ beep
 AskDistro() {
 beeep
 CNT=0
-read
+
 clear
 echo -e "\n Please select from the list below what best descripes your linux or press Ctrl-C to exit..\n"
 while [ $CNT -lt ${#DISTLIST[@]} ]; do
@@ -177,8 +177,8 @@ CheckPackage "git"
 
 echo -en "\nEnter name for downloaded folder or press return for 'gambas' in the current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/Downloads/gambas-main)"
 read -e -p "Name: " REPLY
-if [ -z "$REPLY" ]; then 
-REPLY="gambas"; 
+if [ -z "$REPLY" ]; then
+REPLY="gambas";
 else
 DirString
 fi
@@ -197,17 +197,17 @@ echo -e "\nEnter name for downloaded folder or press return for\n
 default 'gambas-stable' or 'gambas-main' in current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/Downloads/gambas-main)"
 
 read -e -p "Name: " REPLY
-if [ -z "$REPLY" ]; then 
-REPLY="$(pwd)/gambas"; 
+if [ -z "$REPLY" ]; then
+REPLY="$(pwd)/gambas";
 if [ DLTYPE = "b" ]; then REPLY="$REPLY-main"; else REPLY="$REPLY-stable"; fi
 else
 DirString
 fi
 
 DLDIR="${REPLY%/*}"
- if [ "$DLTYPE" = "b" ]; then 
+ if [ "$DLTYPE" = "b" ]; then
   DLFILE="https://gitlab.com/gambas/gambas/-/archive/master/gambas-master.zip"
- else 
+ else
   DLFILE="https://gitlab.com/gambas/gambas/-/archive/stable/gambas-stable.zip"
  fi
 ANAME="${DLFILE##*/}"
@@ -371,7 +371,7 @@ exit 1
 CheckSudo() {
 if [ $SUDO_UP -eq 0 ]; then return; fi
 SFILES=$(sudo su -c "ls /etc/sudoers.d")
-if [[ "$SFILES" = *"g3make_temp"* ]]; then 
+if [[ "$SFILES" = *"g3make_temp"* ]]; then
 sudo su -c "rm /etc/sudoers.d/g3make_temp"
 sudo -K
 fi
@@ -392,12 +392,12 @@ CNT=0 ;
 }
 
 CheckForRepoGambas() {
-echo "checking if is previously installed with package manager..."
+echo "checking if is previously installed with $INSTALLCOM..."
 
 if [[ "$INSTALLCOM" = "apt-get"* ]]; then
- LIST=$(apt list gambas3* 2>/dev/null|grep 'installed'|awk {'print $1'})
+ LIST=$(apt list "gambas3*" 2>/dev/null|grep 'installed'|awk {'print $1'})
 elif [[ "$INSTALLCOM" = "pacman"* ]]; then
- LIST=$(pacman -Qsq gambas3* 2>/dev/null)
+ LIST=$(pacman -Qsq "gambas3*" 2>/dev/null)
 elif [[ "$INSTALLCOM" = "apk"* ]]; then
  echo "apk not done"
 fi
@@ -430,7 +430,7 @@ read REPLY
 if [ "${REPLY}" = "y" ]; then
 sudo su -c 'echo -e "Defaults env_reset, timestamp_timeout=120\nDefaults insults\nDefaults secure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin\"" >/etc/sudoers.d/g3make_temp'
 if [ $? -ne 0 ]; then
-echo "unable to up sudo sorry." 
+echo "unable to up sudo sorry."
 else
 SUDO_UP=1
 echo -e "sudo timeout updated temporarily to 2 hours\n"
