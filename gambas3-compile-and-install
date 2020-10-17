@@ -2,7 +2,7 @@
 
 # Script to ensure the fantastic Gambas3 basic can be compiled on various linux disrtros it supports.
 
-Version="2.5.3"
+Version="2.5.4"
 # Written by Bruce steers
 
 # Run this Script from terminal.
@@ -35,9 +35,15 @@ DISTLIST=("debian-stable" "debian-oldstable" "debian-testing" "debian-unstable" 
 LOG="$HOME/gambas-compile-install.log"
 SUDO_UP=0
 
-AskDistro() {
+beeep() {
+if [ -z $(which beep 2>/dev/null) ]; then return; fi
 beep
+}
+
+AskDistro() {
+beeep
 CNT=0
+read
 clear
 echo -e "\n Please select from the list below what best descripes your linux or press Ctrl-C to exit..\n"
 while [ $CNT -lt ${#DISTLIST[@]} ]; do
@@ -55,6 +61,7 @@ GetDistro "force"
 CheckDistro() {
 CNT=0; FOUNDDISTRO="no"
 while [ $CNT -lt ${#DISTLIST[@]} ]; do
+
 if [ "${DISTLIST[$CNT]}" = "$BUILD" ]; then FOUNDDISTRO="yes"; return; fi
 ((CNT++))
 done
@@ -107,6 +114,14 @@ read ANS
 if [ "${ANS,,}" = "s" ]; then AskDistro; return; fi
 }
 
+
+DirString() {
+ if [[ "$REPLY" = "~"*  ]]; then REPLY="$HOME${REPLY##*~}"; fi  # replace ~/ with homedir
+ if [[ "$REPLY" = *"/"  ]]; then REPLY="$HOME${REPLY%*/}"; fi # trim trailing /
+}
+
+
+
 GetGambasGitDir() {
 # Say hi, give info, ask user to select a gambas gitlab dir or download it.
 clear
@@ -130,10 +145,11 @@ fi
 clear
 echo -e "A Gambas GitLab clone directory is now needed...\nType 'd' to download from the Gambas website\nOr..."
 if [ ! -z "$ZEN" ]; then echo -e "Type 'b' to browse for an existing gambas gitlab clone dir.\nOr..."; fi
-echo -n "Type the directory name now: "
-read REPLY
 
+read -e -p "Type the directory name now: " REPLY
 if [ -z "$REPLY" ]; then ErrorOut "No input given, aborting."; fi
+
+DirString
 
 if [ "${REPLY,,}" = "b" ]; then
 REPLY=$(zenity --file-selection --title="Select you Gambas GitLab clone directory" --filename="$HOME/gambas" --directory 2>/dev/null)
@@ -141,6 +157,7 @@ REPLY=$(zenity --file-selection --title="Select you Gambas GitLab clone director
 if [ -z "$REPLY" ]; then ErrorOut "User Cancelled."; fi
 
 elif [ "${REPLY,,}" = "d" ]; then
+
 clear
 echo -en "\nDownload option has been chosen. you have 4 choices..\n
 * Use 'git' to clone the latest 'stable' version. (recomended)\n* Use 'git' to clone the latest 'beta' gambas.
@@ -149,18 +166,23 @@ echo -en "\nDownload option has been chosen. you have 4 choices..\n
 \nOr just press return for git stable. : "
 read RPLY
 
-  if [ "${REPLY,,}" = "cs" ]; then DLMODE="c"; DLTYPE="s"
-elif [ "${REPLY,,}" = "cb" ]; then DLMODE="c"; DLTYPE="b"
-elif [[ "${REPLY,,}" = "gs" ]] || [[ -z $REPLY ]]; then DLMODE="g"; DLTYPE="s"
-elif [ "${REPLY,,}" = "gb" ]; then DLMODE="g"; DLTYPE="b"
+  if [ "${RPLY,,}" = "cs" ]; then DLMODE="c"; DLTYPE="s"
+elif [ "${RPLY,,}" = "cb" ]; then DLMODE="c"; DLTYPE="b"
+elif [[ "${RPLY,,}" = "gs" ]] || [[ -z $REPLY ]]; then DLMODE="g"; DLTYPE="s"
+elif [ "${RPLY,,}" = "gb" ]; then DLMODE="g"; DLTYPE="b"
 fi
 
 if [ "$DLMODE" = "g" ]; then
 CheckPackage "git"
 
-echo -en "\nEnter name for downloaded folder or press return for 'gambas' in the current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/Downloads/gambas-main)\nName: "
-read REPLY
-if [ -z "$REPLY" ]; then REPLY="gambas"; fi
+echo -en "\nEnter name for downloaded folder or press return for 'gambas' in the current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/Downloads/gambas-main)"
+read -e -p "Name: " REPLY
+if [ -z "$REPLY" ]; then 
+REPLY="gambas"; 
+else
+DirString
+fi
+
  if [ "$DLTYPE" = "s" ]; then
  git clone --depth=1 -b stable https://gitlab.com/gambas/gambas.git "$REPLY"
  else
@@ -171,12 +193,15 @@ ISNEW="yes"
 
 else  # DLMODE curl
 CheckPackage "curl"
-echo -en "\nEnter name for downloaded folder or press return for\n
-default 'gambas-stable' or 'gambas-main' in current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/Downloads/gambas-main)\nName: "
-read REPLY
+echo -e "\nEnter name for downloaded folder or press return for\n
+default 'gambas-stable' or 'gambas-main' in current dir.\n$(pwd)/gambas\n(You may also give an alternative path, eg. $HOME/Downloads/gambas-main)"
+
+read -e -p "Name: " REPLY
 if [ -z "$REPLY" ]; then 
 REPLY="$(pwd)/gambas"; 
 if [ DLTYPE = "b" ]; then REPLY="$REPLY-main"; else REPLY="$REPLY-stable"; fi
+else
+DirString
 fi
 
 DLDIR="${REPLY%/*}"
@@ -205,6 +230,7 @@ fi
 
 if [ ! -z "$NEWREPLY" ]; then REPLY="$NEWREPLY"; fi
 
+
 echo "Working in directory '$REPLY'"
 cd "$REPLY"
 if [ $? -ne 0 ]; then ErrorOut "can't find dir '$REPLY'."; fi
@@ -216,7 +242,7 @@ fi
 
 fi  # end if asking for gambas dir.
 
-clear
+#clear
 echo -e "\n Okay, Working in the following directory...\n'$REPLY'\n\nA Gambas3 Version $(cat ./VERSION) source dir."
 
 if [ ! "$ISNEW" = "yes" ]; then

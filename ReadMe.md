@@ -2,7 +2,7 @@
 This is a script to help ensure the fantastic Gambas3 basic latest version can be compiled
 and installed on various linux disrtros it supports.
 
-Version 2.5.3\
+Version 2.5.4\
 Written by Bruce steers <g3compiler@bws.org.uk>\
 Note. This script is not written by any of the gambas team members just a Gambas user/supporter.\
 So please do not contact them for support if you have problems with running this script. Thank you.
@@ -17,7 +17,7 @@ each distro but it is not auto-created and needs updating at times as things cha
 Whilst trying to get the Gambas wiki pages for Debian and Raspbian up to date I asked on the 
 developers mailing list for some "expert" advice. 
 I was told by the main Gambas developer Benoît Minisini of a file that exists in the GitLab 
-repository called ".gitlab-ci.yml" that is used when a "ppa" type install would happen. 
+repository called ".gitlab-ci.yml" that is used by GitLab itself to compile Gambas for distibution. 
 This file contains up to date lists of package requirements for various systems.
 
 With this new knowledge I have made a shell script that does the following...
@@ -29,7 +29,8 @@ With this new knowledge I have made a shell script that does the following...
   and watch in order to catch the password request at 'make install'.
 + Offers to install ALL dependencies/packages needed for compilation/install.
 + Offers yes or no options to run all commands needed to compile/install Gambas3
-   from the './reconf-all' to the 'make install'
+   from the './reconf-all' to the 'make install' or "yes to all" can be selected to 
+   fully automate the process.
 + Offers to make a desktop icon and/or a menu item.
 
 Supports..
@@ -39,7 +40,8 @@ Supports..
 + Raspbian, 
 + Archlinux, 
 + ManjaroLinux
-+ Alpine (untested and supports badly, I do not reccomend using it on an Alpine system)
+
+- Alpine (untested and unsupported, I do not reccomend using it on an Alpine system)
 
 
 How to use...
