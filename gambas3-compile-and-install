@@ -116,7 +116,7 @@ if [ "${ANS,,}" = "s" ]; then AskDistro; return; fi
 
 
 DirString() {
- if [[ "$REPLY" = "~"*  ]]; then REPLY="$HOME${REPLY##*~}"; fi  # replace ~/ with homedir
+ if [[ "$REPLY" = "~"*  ]]; then REPLY="${REPLY##*~}"; fi  # replace ~/ with homedir
  if [[ "$REPLY" = *"/"  ]]; then REPLY="$HOME${REPLY%*/}"; fi # trim trailing /
 }
 
@@ -143,7 +143,7 @@ if [ -z "$ZEN" ]; then
 ZEN=$(which zenity 2>/dev/null)
 fi
 clear
-echo -e "A Gambas GitLab clone directory is now needed...\nType 'd' to download from the Gambas website\nOr..."
+echo -e "\n  \e[4mA Gambas GitLab clone directory is now needed...\e[24m\n\nType 'd' to download from the Gambas website\nOr..."
 if [ ! -z "$ZEN" ]; then echo -e "Type 'b' to browse for an existing gambas gitlab clone dir.\nOr..."; fi
 
 read -e -p "Type the directory name now: " REPLY
@@ -392,7 +392,8 @@ CNT=0 ;
 }
 
 CheckForRepoGambas() {
-echo "checking if is previously installed with $INSTALLCOM..."
+clear
+echo "checking if Gambas3 is previously installed with ${INSTALLCOM%% *}..."
 
 if [[ "$INSTALLCOM" = "apt-get"* ]]; then
  LIST=$(apt list "gambas3*" 2>/dev/null|grep 'installed'|awk {'print $1'})
@@ -410,9 +411,8 @@ return
 fi
 
 ProcessList
-#clear
-echo -en "\nWarning...\n\nThere are ${#LARY[@]} Gambas3 packages previously installed by your package manager and need to be uninstalled before the 'make install' command is executed.
-\nNote. Removal of ALL package manager Gambas3 items will not happen untill just before 'make install' and not now so you will still have Gambas3 installed should the compilation process fail.\nPress return to continue: "
+echo -en "\n\e[5:7mWarning...\e[0m\n\nThere are ${#LARY[@]} Gambas3 packages previously installed by your package manager and need to be uninstalled before the 'make install' command is executed.
+\nNote. Removal of ALL package manager Gambas3 items will not happen until just before 'make install' and not now so you will still have Gambas3 installed should the compilation process fail.\nPress return to continue: "
 read
 }
 
