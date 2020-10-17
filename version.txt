@@ -4,6 +4,7 @@ Version/Revision history
 Version 2.5.4
 Now using "read -e" when inputing directory names enabling TAB autocompletion.
 Now handles "~/" for Home Directory
+would error if you used a trailing / in a path name.  fixed. 
 
 Version 2.5.3
 The temporary sudo timeout lengthening file was not getting deleted on Manjaro (archlinux)
