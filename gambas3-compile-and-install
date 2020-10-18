@@ -536,7 +536,6 @@ if [ "${ANSWER,,}" = "y" ]; then
 xdg-desktop-icon install ./app/desktop/gambas3.desktop --novendor
 chmod +x "$(xdg-user-dir)/Desktop/gambas3.desktop"
 fi
-fi
 
 echo -e "\nInstallation script now completed..."
 echo -ne "All seemed to go well and Gambas3 should now compiled and installed correctly\nPress return to exit :"
