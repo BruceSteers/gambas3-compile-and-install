@@ -33,7 +33,6 @@ Supports..
 + Raspbian, 
 + Archlinux, 
 + ManjaroLinux
-+ Alpine
 
 
 How to use...
@@ -63,17 +62,18 @@ working it gives a list of supported linux types to choose from or you can un-co
 linux version you have.
 
 Supported variations are...
-Ubuntu/Mint (various versions), Debian (various versions), Raspbian, Archlinux, Manjaro, Alpine
+Ubuntu/Mint (various versions), Debian (various versions), Raspbian, Archlinux, Manjaro
 
 Note. if you are using Archlinux-clang you may need to set manually as i do not know how to 
 differntiate between archlinux and archlinux-clang
+Also I do not have Alpine linux so alpine is untested and unsupported , but it might work, i have no idea.
 
 Once your linux is detected if not run from the Gambas source folder you are asked to 
 download a new clone or select an existing clone dir.
 If downloading a new clone you are asked for a path/name for the download folder
 or it defaults to 'gambas' in the current dir.
 
-Note. if your Gambas source folder is not a GitLab clone but an unpacked tarball it
+Note. if your Gambas source folder is not a GitLab clone it
 may be missing the vital ".gitlab-ci.yml" file.
 To fix this go to https://gitlab.com/gambas/gambas/-/blob/master/.gitlab-ci.yml
 and download the .gitlab-ci.yml file and copy it to your Gambas source directory.
