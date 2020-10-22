@@ -44,7 +44,6 @@ Supports..
 
 - Alpine (untested and unsupported, I do not reccomend using it on an Alpine system)
 
-
 How to use...
 
 Simply put...
@@ -92,6 +91,8 @@ and download the .gitlab-ci.yml file and copy it to your Gambas source directory
 
 You are then presented with an options page where you can set how you want to compile.
 ALL procedures can be run or you can select what ones you want.
+
+![Snapshot](http://bws.org.uk/images/gambas-compiler.png)
 
 You can asked a series of questions to give a y/n/a answer before each command is run.
 y = YES, n = NO (default if no answer given) , a = Ask no more and say Yes to All
