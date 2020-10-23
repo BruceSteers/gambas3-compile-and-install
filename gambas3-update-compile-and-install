@@ -5,7 +5,7 @@ Version="3.0"
 WRAP=100 #set text wrapping With long messages
 CONF="$HOME/.config/gambas-comipler.conf"
 
-OPT_ASK=1; OPT_UPD=0; OPT_CFA=1; OPT_CNF=1
+OPT_ASK=1; OPT_UPD=0; OPT_GUP=1; OPT_CFA=1; OPT_CNF=1
 OPT_MKE=1; OPT_MKI=1; OPT_DSK=0; OPT_MNU=0; OPT_ALL=0; OPT_SVE=1; OPT_SVE_CFG=1; OPT_SVE_MKE=0
 OPT_INST_WAIT=0; OPT_INST_BEEP=0; SUDO_UP=0; SUDO_UPPED=0
 
@@ -13,8 +13,6 @@ DISTLIST=("debian-stable" "debian-oldstable" "debian-testing" "debian-unstable" 
 "ubuntu-eoan" "ubuntu-xenial" "ubuntu-trusty" "archlinux" "archlinux-clang" "alpine")
 
 LOG="$HOME/gambas-compile-install.log"
-
-
 
 
 #############################################################
@@ -129,6 +127,7 @@ if [ -z $1 ]; then return ; fi
 if [ "${1,,}" = "s" ]; then GetDirectory "force"; return
 elif [ "${1,,}" = "r" ]; then Toggle "OPT_SVE_CFG" 1
 elif [ "${1,,}" = "q" ]; then Toggle "OPT_ASK" 1
+elif [ "$1" = "g" ]; then Toggle "OPT_GUP" 1
 elif [ "$1" = "u" ]; then Toggle "OPT_UPD" 1
 elif [ "$1" = "1" ]; then Toggle "OPT_CFA" 1
 elif [ "$1" = "2" ]; then Toggle "OPT_CNF" 1
@@ -150,10 +149,11 @@ fi
 ShowOptions() {
 clear
 echo -e "\nPre-Start Options..\n"
-echo -e "\e[44;38m S \e[0m = Change Source Directory: '$SDIR' Gambas V$GB_VER)"
+echo -e "\e[44;38m S \e[0m = Change Source Directory:\n'$SDIR' (Gambas V$GB_VER)"
 echo ""
 WriteOption $OPT_ASK "Q" "Question before each command."
-WriteOption $OPT_UPD "U" "Update Mode. run only if git gets updates"
+WriteOption $OPT_GUP "G" "Check with Git for any updates"
+if [ $OPT_GUP -eq 1 ]; then WriteOption $OPT_UPD "U" "Updated Only Mode. Compile only if git updates."; fi
 WriteOption $OPT_CFA "1" "Run ./config-all"
 WriteOption $OPT_CNF "2" "Run ./configure -C"
 WriteOption $OPT_MKE "3" "Run make"
@@ -242,7 +242,7 @@ SaveSetting "PKG_GambasCheck" "installed"
 
 ProcessList
 echo -en "\n\e[5;7mWarning...\e[0m\n\nThere are ${#LARY[@]} Gambas3 packages previously installed by your package manager and need to be uninstalled before the 'make install' command is executed.
-\nNote.Removal Of ALL package manager Gambas3 items will Not happen Until just before 'make install' and not now so you will still have Gambas3 installed should the compilation process fail.\nPress return to continue: "
+\nNote.Removal Of ALL package manager Gambas3 items will not happen until just before 'make install' and not now so you will still have Gambas3 installed should the compilation process fail.\nPress return to continue: "
 read
 }
 
@@ -281,7 +281,7 @@ if [ ! -e "$P" ]; then sudo mkdir "$P"; fi
 GB_VER=$(cat "$SDIR/VERSION")
 if [ ! -e "$SDIR/.gitlab-ci.yml" ]; then
 echo "Error, Dir '$SDIR' is not a Gambas GitLab clone!\nThis script will only work on a true gitlab clone
-un unpacked archive does Not contain the required data.\nCannot Continue On this dir."|fold -sw $WRAP
+un unpacked archive does not contain the required data.\nCannot continue on this dir."|fold -sw $WRAP
 DIR_ERROR=1
 sleep 1
 else
@@ -389,8 +389,8 @@ done
 #############################################################
 
 DirString() {  # process an inputted directory string
- if [[ "$SDIR" = "'"* ]]; then SDIR="${SDIR#\'}"; SDIR="${SDIR%\'}"; fi # trim single quotes ' from name
- if [[ "$SDIR" = "\""* ]]; then SDIR="${SDIR#\"}"; SDIR="${SDIR%\"}"; fi # trim double quotes from name
+ if [[ "$SDIR" = "'"* ]]; then SDIR="${SDIR#\'}"; SDIR="${SDIR%\'}"; fi # trim single quotes from name
+ if [[ "$SDIR" = "\""* ]]; then SDIR=${SDIR#\"}; SDIR=${SDIR%\"}; fi #" trim double quotes from name
  if [[ "$SDIR" = "file://"* ]]; then SDIR="${SDIR#file://}"; fi # remove file:// prefix
  if [[ "$SDIR" = "~"*  ]]; then SDIR="$HOME${SDIR##*~}"; fi  # replace '~/' with homedir
  if [[ "$SDIR" = *"/"  ]]; then SDIR="${SDIR%*/}"; fi # trim any trailing '/'
@@ -411,9 +411,11 @@ if [[ " $BSCRIPT " = *" $1 "* ]]; then BSCRIPT=${BSCRIPT%% $1*}${BSCRIPT##*$1}; 
 #############################################################
 
 GitUpdate() {
+if [ $OPT_GUP -eq 0 ]; then return; fi
 
-Ask "Run 'git pull' to check for recent commits?"
+Ask "Run 'git pull' to check for recent commits (y/n)? "
 if [ "${ANSWER,,}" != "y" ]; then return ; fi
+
 CheckPackage "git"
 
 RESULT=$(git pull 2>/dev/null|tee --append '$LOG' /dev/stderr)
@@ -515,7 +517,7 @@ exit 1
 #############################################################
 
 function ctrl_c() {
-echo -en "\n** CTRL-C was pressed, exiting..."
+echo -en "\n** Ctrl-C was pressed, exiting..."
 CheckSudo
 sleep 1
 exit
@@ -580,9 +582,9 @@ ShowInstOptions() {
 if [ $OPT_SVE_MKE -eq 1 ]; then return ; fi
 clear
 echo -e "\n\e[5;7mWarning...\e[0m\n\nThe 'make install' command will be run.
-This command requires you To type your root password And if you are Not at the keyboard it will timeout causing the script To abort.
-Ways To avoid this are For the script To pause And await your signal To Continue before this command Is Run.
-Or we can up the sudo timeout Time To 2 hours while the script runs.
+This command requires you to type your root password and if you are not at the keyboard it will timeout causing the script to abort.
+Ways to avoid this are for the script to pause and await your signal To continue before this command is run.
+Or we can up the sudo timeout time to 2 hours while the script runs.
 Select an options below..\n "|fold -sw $WRAP
 
 WriteOption $OPT_INST_WAIT "W" "Wait for user to press return."
@@ -640,12 +642,12 @@ CheckForRepoGambas
 if [ "$IntroShown" != "yes" ]; then
 clear
 echo -e "\e[40;32;4m  Introduction.  \e[0m\n\n Welcome to Bruces Gambas3 compile and install script. V$Version\n
-This will setup your computer For compiling Gambas3 by cloning/downloading the latest stable Or beta version Or allowing you To choose an existing clone On your disk, installing the required dependencies, then running through the process of configuring and compiling and installing.\n
+This will setup your computer for compiling Gambas3 by cloning/downloading the latest stable or beta version or allowing you to choose an existing clone on your disk, installing the required dependencies, then running through the process of configuring and compiling and installing.\n
 A y/n (yes/no) choice can be asked before running all commands or 'a' can be typed for 'Yes to All'
 To abort you can press Ctrl-C at any time. \ n
-Firstly you must Select an existing gambas3 source directory Or a download method.
+Firstly you must select an existing gambas3 source directory or a download method.
 
-After that you can Select various options before the process begins.
+After that you can select various options before the process begins.
 Press return To continue..."|fold -sw $WRAP
 read
 SaveSetting "IntroShown" "yes"
