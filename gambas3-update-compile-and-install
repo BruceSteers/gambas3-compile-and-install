@@ -1,0 +1,1006 @@
+#!/usr/bin/env bash
+
+Version="3.4"
+
+WRAP=120 # set text wrapping With long messages.
+CONF="$HOME/.config/gambas-compiler.conf"
+
+OPT_ASK=0; OPT_UPD=0; OPT_GUP=1; OPT_CFA=1; OPT_CNF=1; OPT_ERR=0
+OPT_MKE=1; OPT_MKI=1; OPT_DSK=0; OPT_MNU=0; OPT_ALL=0; OPT_SVE=1; OPT_SVE_CFG=1; OPT_SVE_MKE=0
+OPT_INST_WAIT=0; OPT_INST_BEEP=0; SUDO_UP=0; SUDO_UPPED=0; OPT_SVE_COMP=1
+
+DISTLIST=("debian-stable" "debian-oldstable" "debian-testing" "debian-unstable" "raspbian" "ubuntu-latest" "ubuntu-focal" "ubuntu-hirsute" "ubuntu-xenial" "ubuntu-trusty" "archlinux" "archlinux-clang" "alpine" "fedora-latest" "opensuse-tumbleweed")
+set -o pipefail
+
+if [ -z "$HOME" ]; then
+V=$(w -h|awk '{print $1}'|tr "\n" "@")
+HOME="/home/${V%%@*}"
+export HOME="$HOME"
+fi
+
+LOG=$HOME/gambas-compile-install.log
+
+DEBUG=0  # set to 1 to stop all 'clear' calls erasing error text.
+
+#############################################################
+
+AskDistro() {
+CNT=0
+
+Clear
+echo -e "\n Please select from the list below what best describes your linux or press Ctrl-C to exit..\n"
+
+  while [ $CNT -lt ${#DISTLIST[@]} ]; do
+    echo "- $CNT: ${DISTLIST[$CNT]}"
+    ((CNT++))
+  done
+
+echo -en "\nType the number that best matches your linux: "
+read DREP
+if [ -z "$DREP" ]; then GetDistro "force"; return ; fi
+BUILD=${DISTLIST[$DREP]}
+GetDistro "force"
+}
+
+#############################################################
+
+CheckDistro() {
+CNT=0; FOUNDDISTRO="no"
+while [ $CNT -lt ${#DISTLIST[@]} ]; do
+echo "${DISTLIST[$CNT]}"  "$BUILD"
+if [ "${DISTLIST[$CNT]}" = "$BUILD" ]; then FOUNDDISTRO="yes"; return ; fi
+((CNT++))
+done
+}
+
+#############################################################
+
+GetDistro() {
+
+if [ "$1" != "force" ]; then
+
+  if [ ! -z "$BUILD" ]; then if [ "$1" != "b=$BUILD" ]; then return; fi; fi
+
+LINUXNAME=$(lsb_release -is)
+LINUXNAME=${LINUXNAME,,}
+else
+LINUXNAME="$BUILD"
+fi
+
+LINUXVER=$(lsb_release -rs)
+LV=${LINUXVER%.*}
+
+if [ "$LINUXNAME" = "linuxmint" ]; then LINUXNAME="ubuntu"; TRUENAME="LinuxMint"; ISMINT="yes"; fi
+if [ "$LINUXNAME" = "raspbian" ]; then LINUXNAME="Debian"; TRUENAME="Raspian"; RASPI="yes"; fi
+if [ "$LINUXNAME" = "manjarolinux" ]; then LINUXNAME="ArchLinux"; TRUENAME="ManjaroLinux"; fi
+
+ if [ "$LINUXNAME" = "ubuntu" ]; then
+ if [ $LV -le 14 ]; then LINUXNAME="ubuntu-trusty"
+ elif [ $LV -le 16 ]; then LINUXNAME="ubuntu-xenial"
+ elif [ $LV -le 18 ]; then LINUXNAME="ubuntu-bionic"
+ elif [ $LV -le 20 ]; then LINUXNAME="ubuntu-focal"
+ elif [ $LV -ge 21 ]; then LINUXNAME="ubuntu-hirsute"
+ else
+ LINUXNAME="ubuntu-latest"
+ fi
+elif [ "$LINUXNAME" = "debian" ]; then
+ if [ $LV -le 10 ]; then LINUXNAME="debian-oldstable"
+  elif [[ "$PRETTY_NAME" = *"/sid" ]]; then LINUXNAME="debian-testing"
+  elif [ $LV -ge 12 ]; then LINUXNAME="debian-unstable"
+ else
+  LINUXNAME="debian-stable"
+ fi
+
+elif [ "$LINUXNAME" = "fedora" ]; then
+ if [ $LV -ge 33 ]; then LINUXNAME="fedora-latest"
+ fi
+elif [ "$LINUXNAME" = "opensuse-leap" ]; then LINUXNAME="opensuse-tumbleweed"; SUSELEAP="yes"
+fi
+
+BUILD=$LINUXNAME
+
+if [ "$LINUXNAME" = "alpine" ]; then INSTALLCOM="apk add --no-progress -q"
+elif [[ "$LINUXNAME" = "archlinux"* ]]; then INSTALLCOM="pacman -Syu --needed --noconfirm"
+elif [[ "$LINUXNAME" = "fedora"* ]]; then INSTALLCOM="dnf install -y"
+elif [[ "$LINUXNAME" = "opensuse-"* ]]; then INSTALLCOM="zypper install -y"
+else
+INSTALLCOM="apt install -y"
+fi
+BUILDNAME="$BUILD"
+if [ ! -z "$TRUENAME" ]; then BUILDNAME="$BUILD ($TRUENAME)"; fi
+
+CheckDistro
+if [ "$FOUNDDISTRO" = "no" ]; then AskDistro; return ; fi
+Clear
+
+if [ "$1" = "b=$BUILD" ]; then return ; fi
+
+echo -ne "\n Bruces Gambas3 download, setup, compile and install script.\n\n Before we begin you must make sure the right linux has been detected.\n\n Auto-detected linux system type for compiling Gambas3 is...\n
+'$BUILDNAME'\n\nif '$BUILDNAME' is NOT your system type 's' to 'Select' an alternative from the list of supported types\n(Type s or press return to continue) :"|fold -sw $WRAP
+read ANS
+if [ "${ANS,,}" = "s" ]; then AskDistro; return ; fi
+
+SaveSetting "BUILD"
+}
+
+
+#############################################################
+
+WriteOption() {
+echo -ne "\e[48;5;32m $2 \e[0m ["
+if [ $1 -eq 1 ]; then echo -en "\e[48;5;119;31mY\e[0m"; else echo -n " "; fi
+echo -en "] $3"
+if [[ ! "$4" = *"n"* ]]; then echo ""; fi
+}
+
+#############################################################
+
+Toggle() {
+eval "if [ \$$1 -eq 1 ]; then $1=0; else $1=1; fi"
+if [ $2 -eq 1 ]; then SaveSetting "$1"; fi
+}
+
+#############################################################
+
+SetAll() {
+OPT_DEP=$1; OPT_CFA=$1; OPT_CNF=$1; OPT_MKE=$1; OPT_MKI=$1
+SaveSetting "OPT_DEP"; SaveSetting "OPT_CFA"; SaveSetting "OPT_CNF"
+SaveSetting "OPT_MKE"; SaveSetting "OPT_MKI"
+}
+
+#############################################################
+
+SetOption() {
+if [ -z $1 ]; then return ; fi
+#if [[ "12345" = *"$1"* ]]; then OPT_ASK=0; fi
+
+if [ "${1,,}" = "s" ]; then GetDirectory "force"; return
+elif [ "${1,,}" = "f" ]; then KillSetting "OPT_SVE_MKE"; return
+elif [ "${1,,}" = "r" ]; then Toggle "OPT_SVE_CFG" 1
+elif [ "${1,,}" = "q" ]; then Toggle "OPT_ASK" 1
+elif [ "${1,,}" = "g" ]; then Toggle "OPT_GUP" 1
+elif [ "${1,,}" = "pm" ]; then git pull upstream master; sleep 1; return
+elif [ "$1" = "u" ]; then Toggle "OPT_UPD" 1
+elif [ "$1" = "1" ]; then Toggle "OPT_CFA" 1
+elif [ "$1" = "2" ]; then Toggle "OPT_CNF" 1
+elif [ "$1" = "3" ]; then Toggle "OPT_MKE" 1
+elif [ "$1" = "4" ]; then Toggle "OPT_MKI" 1
+
+elif [ "${1,,}" = "a" ]; then SetAll 1
+elif [ "$1" = "0" ]; then SetAll 0
+elif [ "${1,,}" = "e" ]; then Toggle "OPT_ERR" 1
+
+elif [ "${1,,}" = "d" ]; then Toggle "OPT_DSK"
+elif [ "${1,,}" = "m" ]; then Toggle "OPT_MNU"
+elif [ "${1,,}" = "c" ]; then
+read -e -p "Type Command: " COM
+if [ -z "$COM" ]; then return; fi
+eval "$COM"
+elif [ "${1,,}" = "i" ]; then
+ShowComponentOptions
+elif [ "${1,,}" = "x" ]; then 
+sudo make uninstall
+make distclean
+SetAll 1
+elif [ "${1,,}" = "b" ]; then ShowBranches
+else
+echo "Unknown command! $1"
+sleep 1
+fi
+}
+
+#############################################################
+
+ShowOptions() {
+cd "$SDIR"
+Clear
+echo -e "\nPre-Start Options..\n"
+echo -e "\e[44m\e[37m S \e[0m = Change Source Directory:\n'$SDIR' (Gambas V$GB_VER)"
+HAS_GIT=1; if [ -z $(which "git" 2>/dev/null) ]; then HAS_GIT=0; fi
+
+if [ $HAS_GIT -eq 1 ]; then 
+echo -n "Current Branch: $(git branch|grep '* ')  Type "
+WriteOption 0 "B" " to select another branch"
+fi
+echo ""
+
+WriteOption $OPT_ASK "Q" "Question (y/n) before commands?" #"n"
+#echo -en "\t"; WriteOption 0 "I" "Install/Disable Components"
+echo ""
+
+if [ $HAS_GIT -eq 1 ]; then 
+	WriteOption $OPT_GUP "G" "Check with Git for updates" "n"
+	if [ $OPT_GUP -eq 1 ]; then echo -ne "\t"; WriteOption $OPT_UPD "U" "Compile only if git updates."; else echo ""; fi
+	echo "Type: 'pm' to run 'git pull upstream master'"
+else
+	echo ""
+fi
+WriteOption $OPT_CFA "1" "Run ./config-all" "n"; echo -en "\t\t"; WriteOption $OPT_CNF "2" "Run ./configure -C"
+WriteOption $OPT_MKE "3" "Run 'make'" "n"; echo -ne "\t\t\t"; WriteOption $OPT_MKI "4" "Run make install"
+WriteOption $OPT_ALL "A" "Run all above commands." "n"; echo -ne "\t\t"; WriteOption $OPT_ALL "0" "Unselect All above commands"
+echo ""
+WriteOption $OPT_SVE_CFG "R" "Remember all above choices." "n"; echo -ne "\t";
+echo -e "\e[44m\e[97m F \e[0m = Forget 'make install' options"
+WriteOption $OPT_ERR "E" "Show ./configure Errors only" "n"
+echo -ne "\t"; WriteOption 0 "X" "\e[32mComplete Re-Install\e[0m"
+echo ""
+WriteOption $OPT_DSK "D" "Install Desktop Icon.";
+WriteOption $OPT_MNU "M" "Install Menu Item (only needed in versions below V3.15.2)"
+
+echo -e "\nTo toggle options type the letter/number on the left and press return."
+read -e -p "(type 'c' to run a command) Choice: " OREPLY
+
+SetOption $OREPLY
+if [ ! -z "$OREPLY" ]; then ShowOptions; return ; fi
+}
+
+#############################################################
+
+CheckSudo() {
+if [ $SUDO_UPPED -eq 0 ]; then return ; fi
+SFILES=$(sudo su -c "ls /etc/sudoers.d")
+if [[ "$SFILES" = *"g3make_temp"* ]]; then
+sudo su -c "rm /etc/sudoers.d/g3make_temp"
+sudo -K
+echo -e "\n\e[32msudo timeout restored to default\e[0m\n"
+sleep 1
+fi
+}
+
+#############################################################
+
+UpSudoTimeout() {
+if [ $SUDO_UP -eq 0 ]; then return; fi
+sudo su -c 'echo -e "Defaults env_reset, timestamp_timeout=120\nDefaults insults\nDefaults secure_path=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin\"" >/etc/sudoers.d/g3make_temp'
+if [ $? -ne 0 ]; then
+echo "unable to up sudo sorry."
+else
+SUDO_UPPED=1
+sudo echo -e "\n\e[31msudo timeout updated temporarily to 2 hours\e[0m\n"
+sudo false
+fi
+}
+
+#############################################################
+
+ProcessList() {
+TIFS=$IFS
+IFS=$'\n'
+read -d "|" -a LARY <<< "$LIST|"
+CNT=0;
+ while [ $CNT -lt ${#LARY[@]} ]; do
+  if [[ "$INSTALLCOM" = "apt"* ]]; then
+   UNINSTALLGB="$UNINSTALLGB ${LARY[$CNT]%%/*}"
+  elif [[ "$INSTALLCOM" = "dnf"* ]]; then
+   UNINSTALLGB="$UNINSTALLGB ${LARY[$CNT]%.*}"
+  elif [[ "$INSTALLCOM" = "zypper"* ]]; then
+    if [[ "$LARY[$CNT]" = "gambas"* ]]; then 
+      UNINSTALLGB="$UNINSTALLGB $LARY[$CNT]"; 
+    fi
+  else
+   UNINSTALLGB="$UNINSTALLGB ${LARY[$CNT]}"
+  fi
+ ((CNT++))
+ done
+IFS=$TIFS
+}
+
+#############################################################
+
+CheckForRepoGambas() {
+#if [ "$PKG_GambasCheck" = "$(date +%B)" ]; then return ; fi
+Clear
+echo "checking if Gambas3 is previously installed with ${INSTALLCOM%% *}..."
+
+if [[ "$INSTALLCOM" = "apt"* ]]; then
+ LIST=$(apt list --installed "gambas3*" 2>/dev/null|grep 'gambas'|awk {'print $1'})
+elif [[ "$INSTALLCOM" = "pacman"* ]]; then
+ LIST=$(pacman -Qsq "gambas3*" 2>/dev/null)
+elif [[ "$INSTALLCOM" = "dnf"* ]]; then
+ LIST=$(dnf  list -C 'gambas3*' 2>/dev/null|grep @fedora|awk '{print $1}')
+elif [[ "$INSTALLCOM" = "zypper"* ]]; then
+ LIST=$(zypper se -i 'gambas3*'|awk '{print $3}' 2>/dev/null)
+elif [[ "$INSTALLCOM" = "apk"* ]]; then
+ echo "apk not done"
+fi
+
+
+if [ -z "$LIST" ]; then
+echo "Gambas is not previously installed by a package manager."
+SaveSetting "PKG_GambasCheck" "$(date +%B)"
+sleep 1
+return
+fi
+
+SaveSetting "PKG_GambasCheck" "installed"
+
+
+ProcessList
+echo -en "\n\e[5;7mWarning...\e[0m\n\nThere are ${#LARY[@]} Gambas3 packages previously installed by your package manager and need to be uninstalled before the 'make install' command is executed.
+\nNote.Removal Of ALL package manager Gambas3 items will not happen until just before 'make install' and not now so you will still have Gambas3 installed should the compilation process fail.\nPress return to continue: "
+read
+}
+
+#############################################################
+
+CheckUninstallGambas() {
+if [ -z "$UNINSTALLGB" ]; then return ; fi
+echo "\nUninstalling previous repository version of Gambas3 now."
+if [ $OPT_ASK -eq 1 ]; then
+ echo -en "The repository version of Gambas3 MUST first be removed.\nPress return to remove or Ctrl-C to quit."
+ read
+fi
+if [[ "$INSTALLCOM" = "apt"* ]]; then
+ VitalCommand "sudo apt -y remove gambas3*"
+ SaveSetting "PKG_GambasCheck" "$(date +%B)"
+elif [[ "$INSTALLCOM" = "pacman"* ]]; then
+ VitalCommand "sudo pacman -R --noconfirm $UNINSTALLGB"
+ SaveSetting "PKG_GambasCheck" "$(date +%B)"
+elif [[ "$INSTALLCOM" = "dnf"* ]]; then
+ VitalCommand "sudo dnf remove -y $UNINSTALLGB"
+ SaveSetting "PKG_GambasCheck" "$(date +%B)"
+elif [[ "$INSTALLCOM" = "zypper"* ]]; then
+ VitalCommand "sudo zypper remove -y $UNINSTALLGB"
+ SaveSetting "PKG_GambasCheck" "$(date +%B)"
+elif [[ "$INSTALLCOM" = "apk"* ]]; then
+ echo "apk not done"
+fi
+}
+
+#############################################################
+
+CheckDirectory() {
+  if [ ! -e "$SDIR" ]; then
+   if [ ! -z "$MountInfo" ]; then
+   echo "Directory not found, attempting to mount $MountInfo"
+ P="${MountInfo##* }"
+ if [ ! -e "$P" ]; then sudo mkdir "$P"; fi
+   eval "sudo mount $MountInfo"
+   fi
+  fi
+
+  if [ ! -e "$SDIR" ]; then
+  echo "Directory '$SDIR' not found."
+  sleep 1
+  SourceDirectory=""; SDIR=""
+  KillSetting "SourceDirectory"
+  GetDirectory
+  return
+  fi
+
+GB_VER=$(cat "$SDIR/VERSION")
+if [ ! -e "$SDIR/.gitlab-ci.yml" ]; then
+echo "Error, Dir '$SDIR' is not a Gambas GitLab clone!\nThis script will only work on a true gitlab clone
+un unpacked archive does not contain the required data.\nCannot continue on this dir."|fold -sw $WRAP
+DIR_ERROR=1
+sleep 1
+else
+DIR_ERROR=0
+fi
+}
+
+#############################################################
+
+GetDirectory() {
+
+ZEN=$(which zenity 2>/dev/null)
+ if [ -z "$ZEN" ]; then
+ echo -ne "\nZenity is needed to enable the 'Browse' feature.\nWould you like to install it? (y/n) :"
+ read ANSWER
+ if [ "${ANSWER,,}" = "y" ]; then CheckPackage "zenity"; fi
+ ZEN=$(which zenity 2>/dev/null)
+ fi
+Clear
+echo -e "\n  \e[4mSelect your existing Gambas source directory...\e[0m\n\n"
+if [ ! -z "$ZEN" ]; then echo -e "Type 'b' to browse for a directory.\nOr..."; fi
+
+read -e -p "Type the directory name now: " REPLY
+if [ -z "$REPLY" ]; then echo "No input given."; sleep 1; REPLY=""; return ; fi
+
+ if [ "${REPLY,,}" = "b" ]; then
+ SDIR=$(zenity --file-selection --title="Select your Gambas source code directory" --filename="$SDIR" --directory 2>/dev/null)
+ if [ -z "$SDIR" ]; then echo "User Cancelled."; sleep 1; REPLY=""; return ; fi
+ else
+ SDIR="$REPLY"
+ fi
+
+DirString
+CheckDirectory
+if [ $DIR_ERROR -eq 1 ]; then return ; fi
+
+if [ "$SourceDirectory" != "$SDIR" ]; then
+SourceDirectory="$SDIR"
+SaveSetting "SourceDirectory" "$SDIR"
+SetDirDevInfo "$SourceDirectory"
+fi
+}
+
+#############################################################
+
+GetGambasGitDir() {
+
+cd "$SDIR"
+
+TEXT=$(cat ".gitlab-ci.yml")
+TIFS=$IFS
+IFS=$'\n'
+ read -d '£' -a TARY <<< "$TEXT£"
+CNT=0; MODE="search"; BSCRIPT=""
+IFS=$TIFS
+
+while [ $CNT -lt ${#TARY[@]} ]; do
+
+TRIMED=$(echo ${TARY[$CNT]##*( )})
+#echo "$TRIMED"
+if [ "$MODE" = "search" ]; then #go through file looking For our dist
+
+ if [ "$TRIMED" = "build:$BUILD:" ]; then
+ STATE="dist $BUILD found, looking for install commands"
+ MODE="getlines"
+ BUILDFOUND="yes"
+ fi
+
+elif [ "$MODE" = "getlines" ]; then
+ if [ "$TRIMED" = "- >" ]; then
+  STATE="found install commands, reading..."
+  MODE="readlines"
+ fi
+
+elif [ "$MODE" = "readlines" ]; then
+ if [ ! -z "$TRIMED" ]; then
+  if [ "$TRIMED" = "script:" ]; then
+  BSCRIPT=$(echo ${BSCRIPT##*( )})
+  STATE="commands listed, looking for configure line..."
+  MODE="getconfigure"
+  else
+  if [[ "$TRIMED" = *"&&"* ]]; then TRIMED=${TRIMED##*&&}; fi
+  if [[ "$TRIMED" = "pacman"* ]]; then TRIMED="pacman -S --noconfirm"; fi
+  BSCRIPT="$BSCRIPT $TRIMED"
+  fi
+ fi
+
+elif [ "$MODE" = "getconfigure" ]; then
+ if [[ "$TRIMED" = *"./configure"* ]]; then
+ CONFIG="${TRIMED##*./configure }"
+
+ if [ "$RASPI" = "yes" ]; then
+  RemovePackage "qtwebengine5-dev"
+  DisableInConf "qt5webview"
+ fi
+
+ if [ "$SUSELEAP" = "yes" ]; then BSCRIPT="$BSCRIPT libdumb-devel";  fi
+
+ RemovePackage "git"
+ STATE="ok"
+ return
+ fi
+fi
+((CNT++))
+done
+}
+
+#############################################################
+
+DirString() {  # process an inputted directory string
+ if [[ "$SDIR" = "'"* ]]; then SDIR="${SDIR#\'}"; SDIR="${SDIR%\'}"; fi # trim single quotes from name
+ if [[ "$SDIR" = "\""* ]]; then SDIR=${SDIR#\"}; SDIR=${SDIR%\"}; fi #" trim double quotes from name
+ if [[ "$SDIR" = "file://"* ]]; then SDIR="${SDIR#file://}"; fi # remove file:// prefix
+ if [[ "$SDIR" = "~"*  ]]; then SDIR="$HOME${SDIR##*~}"; fi  # replace '~/' with homedir
+ if [[ "$SDIR" = *"/"  ]]; then SDIR="${SDIR%*/}"; fi # trim any trailing '/'
+}
+
+#############################################################"
+
+DisableInConf() { # add a --disable- option to ./configure -C
+if [[ "$CONFIG " != *"--disable-$1 "* ]]; then CONFIG="$CONFIG --disable-$1"; fi
+}
+
+#############################################################
+
+RemovePackage() { # this removes a package from the list
+if [[ " $BSCRIPT " = *" $1 "* ]]; then BSCRIPT=${BSCRIPT%% $1*}${BSCRIPT##*$1}; fi
+}
+
+#############################################################
+
+GitUpdate() {
+if [ $OPT_GUP -eq 0 ]; then return; fi
+
+Ask "Run 'git pull' to check for recent commits (y/n)? "
+if [ "${ANSWER,,}" != "y" ]; then return ; fi
+
+CheckPackage "git"
+
+RESULT=$(git pull 2>/dev/null|tee --append "$LOG" /dev/stderr)
+CLINE=$(echo "$RESULT"|grep "(+)")
+
+ if [ -z "$CLINE" ]; then
+  echo "No updates from git"
+  GIT_Updated="false"
+  if [ $OPT_UPD -eq 1 ]; then
+  echo "Running in update mode so nothing further to do."
+  read -p "Press return to exit: "
+  CheckSudo
+  exit 0
+  fi
+ else
+ echo "git updated with.."
+ echo "$CLINE"
+ GetGambasGitDir
+ fi
+
+}
+
+#############################################################
+
+SetDirDevInfo() {
+if [[ "$1" = "/mnt/"* ]]; then
+DNAME="${1##/mnt/}"
+elif [[ "$1" = "/media/$USER/"* ]]; then
+DNAME="${1##/media/$USER/}"
+elif [[ "$1" = "/run/media/$USER/"* ]]; then
+DNAME="${1##/run/media/$USER/}"
+else
+return
+fi
+DNAME="${DNAME%%/*}"
+
+DEV=$(lsblk -o PATH,MOUNTPOINT|grep $DNAME)
+SaveSetting "MountInfo" "\"$DEV\""
+
+}
+
+#############################################################
+
+VitalCommand() {
+echo -e "\nLog: running command.. @ $(date|awk '{print $4}')\n'$1'\n" >>"$LOG"
+eval "$1 2>&1|tee --append '$LOG'; ER=$?"
+ if [ $ER -ne 0 ]; then 
+   ErrorOut "$2"
+ fi
+echo -e "\nLog: no errors." >> "$LOG"
+}
+
+#############################################################
+
+CheckApt() {
+if [ "$APTUPDATED" = "yes" ]; then return ; fi
+if [[ "$INSTALLCOM" = "apt"* ]]; then
+ VitalCommand "sudo apt update" "Updating Apt failed"
+ APTUPDATED="yes"
+elif [[ "$INSTALLCOM" = "pacman"* ]]; then
+ VitalCommand "sudo pacman -Syu --noconfirm --needed" "Updating database failed"
+ APTUPDATED="yes"
+elif [[ "$INSTALLCOM" = "dnf"* ]]; then
+ APTUPDATED="yes"
+fi
+}
+
+#############################################################
+
+CheckPackage() {
+if [ ! -z $(which $1 2>/dev/null) ]; then return ; fi
+
+CheckApt
+if [[ "$INSTALLCOM" = "pacman"* ]]; then
+ VitalCommand "sudo pacman -S --color auto --noconfirm --needed $1" "$1 install failed"
+else
+ VitalCommand "sudo $INSTALLCOM $1" "Install $1 failed"
+fi
+
+echo -e "Package $1 installed\n"
+}
+
+#############################################################
+
+Ask() {
+if [ $OPT_ASK -eq 0 ]; then 
+ ANSWER="y"
+ return
+ fi
+echo -ne "\n$1 (y/n/a=yes to all) :"
+read ANSWER
+if [ "${ANSWER,,}" = "a" ]; then 
+  OPT_ASK=0; 
+  ANSWER="y"; 
+  fi
+}
+
+#############################################################
+
+Clear() {
+	if [ $DEBUG -eq 0 ]; then clear; fi
+}
+
+#############################################################
+
+ErrorOut() {
+echo -e "\nError! $1"
+echo -n "Press return to exit."
+read
+CheckSudo
+exit 1
+}
+
+#############################################################
+
+function ctrl_c() {
+echo -en "\n** Ctrl-C was pressed, exiting..."
+CheckSudo
+sleep 1
+exit
+}
+
+#############################################################
+
+SaveSetting() {
+if [ "$2" = "" ]; then VAL=$(eval "echo \"\$$1\""); else VAL="$2"; fi
+
+if [ -f "$CONF" ]; then
+FILE=$(cat "$CONF")
+OIFS=$IFS
+IFS=$'\n'
+read -d "ð" -a ARRAY <<< "$FILEð"
+IFS=$OIFS
+
+CNT=0; SET=0
+while [ $CNT -lt ${#ARRAY[@]} ]; do
+NM=${ARRAY[$CNT]%%=*}
+VL=${ARRAY[$CNT]#*=}
+if [ "$NM" = "$1" ]; then
+ARRAY[$CNT]="$1=$VAL"
+CNT=${#ARRAY[@]}
+SET=1
+fi
+((CNT++))
+done
+if [ $SET -eq 0 ]; then ARRAY+=("$1=$VAL"); fi
+CNT=0
+echo -n "" >"$CONF"
+while [ $CNT -lt ${#ARRAY[@]} ]; do
+echo -E "${ARRAY[$CNT]}" >>"$CONF"
+((CNT++))
+done
+
+else #no conf file existed so Write one Line
+echo "$1=$VAL" >"$CONF"
+fi
+}
+
+#############################################################
+KillSetting() {
+NAR=()
+
+if [ ! -f "$CONF" ]; then return; fi
+
+FILE=$(cat "$CONF")
+OIFS=$IFS
+IFS=$'\n'
+read -d "ð" -a ARRAY <<< "$FILEð"
+IFS=$OIFS
+
+CNT=0; SET=0
+while [ $CNT -lt ${#ARRAY[@]} ]; do
+NM=${ARRAY[$CNT]%%=*}
+if [ "$NM" != "$1" ]; then
+NAR+=(${ARRAY[$CNT]})
+fi
+((CNT++))
+done
+
+CNT=0
+echo -n "" >"$CONF"
+while [ $CNT -lt ${#NAR[@]} ]; do
+echo -E "${NAR[$CNT]}" >>"$CONF"
+((CNT++))
+done
+eval "$1=0"
+}
+
+#############################################################
+
+SetComponentOption() {
+
+if [ -z $1 ]; then return ; fi
+if [[ ! $1 =~ ^[0-9]+$ ]]; then echo "not a number!"; return; fi
+if [ $1 -gt ${#DLST[@]} ]; then echo "Number too high!"; return; fi
+S="O_${DLST[$1]}"
+
+echo "$s=1"
+eval "$s=1"
+echo "$s \$s"
+
+}
+
+#############################################################
+
+ShowComponentOptions() {
+Clear
+echo -e "Select components that you \e[5mDO NOT\e[0m wish to compile/install.
+Check a component by selecting it's corresponding number
+Any components selected here will be disabled in the './configure' command\n"|fold -sw $WRAP
+
+DIRS=$(dir -1d gb.*)
+OIFS=$IFS
+
+IFS=$'\n'
+read -d '@' -a DLST <<< "$DIRS"
+CNT=0; RCNT=0
+while [ $CNT -lt ${#DLST[@]} ]; do
+LN="${DLST[$CNT]##*.}"
+DLST[$CNT]="$LN"
+VN="O_$LN"
+OPT=0
+eval "if [ "$VN" = "1" ]; then OPT=1; fi"
+echo -n "$VN $OPT"
+WriteOption $OPT "$CNT" "$LN" "n"; echo -ne "\t"
+if [ $RCNT -eq 3 ]; then echo ""; RCNT=-1; fi
+
+((RCNT++))
+((CNT++))
+done
+
+echo ""
+WriteOption $OPT_SVE_COMP "R" "Remember Options for next time."
+read -e -p "Toggle options or press return to continue : " IREPLY
+SetComponentOption "$IREPLY"
+if [ ! -z "$IREPLY" ]; then ShowComponentOptions 1; return ; fi
+}
+
+#############################################################
+
+SetInstOption() {
+if [ -z $1 ]; then return ; fi
+
+if [ "${1,,}" = "w" ]; then Toggle "OPT_INST_WAIT" 1
+
+elif [ "${1,,}" = "s" ]; then Toggle "SUDO_UP" 1
+
+elif [ "${1,,}" = "r" ]; then Toggle "OPT_SVE_MKE" 1
+
+else
+echo "Unknown command! $1"
+sleep 1
+fi
+}
+
+#############################################################
+
+ShowInstOptions() {
+if [[ $OPT_SVE_MKE -eq 1 && $1 -ne 1 ]]; then return ; fi
+Clear
+echo -e "\n\e[5;7mWarning...\e[0m\n\nThe 'make install' command will be run.
+This command requires you to type your root password and if you are not at the keyboard it will timeout causing the script to abort.
+Ways to avoid this are for the script to pause and await your signal To continue before this command is run.
+Or we can up the sudo timeout time to 2 hours while the script runs.
+Select an options below..\n "|fold -sw $WRAP
+
+WriteOption $OPT_INST_WAIT "W" "Wait for user to press return."
+WriteOption $SUDO_UP "S" "Up sudo timeout temporarily to 2 hours"
+echo ""
+WriteOption $OPT_SVE_MKE "R" "Remember Options for next time."
+read -e -p "Toggle options or press return to continue : " IREPLY
+SetInstOption "$IREPLY"
+if [ ! -z "$IREPLY" ]; then ShowInstOptions 1; return ; fi
+}
+
+#############################################################
+
+SetBranch() {
+if [ -z $1 ]; then return ; fi
+if [ "$1" = "$CurrentBranch" ]; then
+echo "already on branch '${BArray[$1]}'"
+sleep 1
+return
+fi
+	for (( c=1; c<="$BCount"; c++ )); do
+		if [ "$c" = "$1" ]; then
+		echo "switching to branch '${BArray[$c]}'"
+		git checkout "${BArray[$c]}"
+		read -p "Press return to continue.."
+		BREPLY=""
+		return
+		fi
+	done
+
+echo "Unknown command! $1"
+sleep 1
+}
+
+#############################################################
+
+ShowBranches() {
+Clear
+echo -e "\n\n Type the number from the list for the branch to switch to.."|fold -sw $WRAP
+
+BList=$(git branch --no-color|tr "\n" "|"|tr -d " ")
+BCount=0
+BArray=("nop")
+	while [ ! -z "$BList" ]; do
+		CURRENT=0
+		((BCount++))
+		sLeft="${BList%%|*}"
+		BList="${BList#*|}"
+		if [[ "$sLeft" = "*"* ]]; then
+			sLeft="${sLeft#*\*}"
+			CURRENT=1
+			CurrentBranch=$BCount
+		fi
+		WriteOption $CURRENT "$BCount" "$sLeft"
+		BArray+=($sLeft)
+	done
+
+echo ""
+#WriteOption $OPT_SVE_MKE "R" "Remember Options for next time."
+read -e -p "Select branch or press return to continue : " BREPLY
+SetBranch "$BREPLY"
+if [ ! -z "$BREPLY" ]; then ShowBranches 1; return ; fi
+}
+
+#############################################################
+
+CheckDeps() {
+
+   if [[ "$INSTALLCOM" = "pacman"* ]]; then
+   DEPS=${BSCRIPT##*-noconfirm }
+   LS=$(pacman -Q $DEPS 2>&1|grep "'"|awk '{print $3}'|tr -d "'")
+   elif [[ "$INSTALLCOM" = "apt"* ]]; then
+   DEPS=${BSCRIPT##*-y }
+   LS=$(dpkg-query --list $DEPS 2>&1|grep "dpkg-query:"|awk '{print $NF}')
+   elif [[ "$INSTALLCOM" = "dnf"* ]]; then
+   LS=$(rpm -q $DEPS|grep " "|awk '{print $2}' 2>/dev/null)
+   fi
+
+    if [ -z "$LS" ]; then
+      echo -e "\e[32mNo new dependencies needed.\e[0m\n"
+      return
+    else
+      DEPS=$(echo "$LS"|tr "\n" " ")
+      echo -e "\e[31mAdditional dependencies needed.\e[0m\n"
+      echo "$DEPS"
+    fi
+
+   CheckApt
+   if [[ "$INSTALLCOM" = "pacman"* ]]; then
+   VitalCommand "sudo pacman -S --color auto --needed $DEPS" "Dependency install failed"
+   elif [[ "$INSTALLCOM" = "apt"* ]]; then
+   VitalCommand "sudo $INSTALLCOM $DEPS" "Dependency install failed"
+   fi
+
+}
+
+#############################################################
+
+#Main() Program starts here
+echo -en "\033]2;'Bruces Gambas3 compiler script'\007"  # set term title text
+
+echo -en "\033[8;25;121t"
+
+echo -e "gambas-compile-and-install output log $(date)\n" > "$LOG"
+
+trap ctrl_c INT #make a Ctrl-C handler so upping sudo timeout can still be reset if user tries To abort script.
+
+if [ -f "$HOME/.config/gambas-comipler.conf" ]; then mv "$HOME/.config/gambas-comipler.conf" $CONF; fi
+if [ -f "$CONF" ]; then source "$CONF"; fi
+
+GetDistro "b=$BUILD"
+
+CheckForRepoGambas
+
+if [ "$IntroShown" != "yes" ]; then
+Clear
+echo -e "\e[40m\e[32m\e[4m  Introduction.  \e[0m\n\n Welcome to Bruces Gambas3 compile and install script. V$Version\n
+This will setup your computer for compiling Gambas3 by allowing you to choose an existing downloaded Gambas3 clone directory on your disk, installing any missing required dependencies, then running through all the processes of configuring and compiling and installing for you.\n
+A y/n (yes/no) choice can be asked before running all commands or 'a' can be typed at most prompts for 'Yes to All' to allow all selected processes to run.
+After the first run it is set up to be a quick compiler, It won't show this message or the distro check, nor will it show the following directory selection screen but start on the options page. It can skip parts you don't want to run, only compile if git finds updates, set sudo timeout to 2 hours so you do not need to catch the 'make install' passwerd prompt. If you select the 'Remeber settings' options then it will auto-run with one press of the return key.
+To abort you can press Ctrl-C at any time.\n
+Firstly you must select an existing gambas3 source directory or a download method.
+
+After that you can select various options before the process begins.
+Press return To continue..."|fold -sw $WRAP
+read
+SaveSetting "IntroShown" "yes"
+fi
+
+if [ -e ".gitlab-ci.yml" ]; then
+ SDIR=$(pwd)
+ echo "Gambas source folder is the current dir.. $SDIR"
+ CheckDirectory
+elif [ ! -z "$SourceDirectory" ]; then
+ SDIR="$SourceDirectory"
+ CheckDirectory
+else
+ GetDirectory
+fi
+
+if [ -z "$SDIR" ]; then
+echo "No directory given, cannot continue.."
+read -p "Press return:"
+exit
+fi
+
+GetGambasGitDir
+
+if [ "$STATE" != "ok" ]; then
+ if [ "$BUILDFOUND" != "yes" ]; then
+  echo -e "Could not find distro $BUILD in the data file!\nFind the line that says what version of linux you are using in this script and try again..."
+  AskDistro
+  GetGambasGitDir
+  else
+  ErrorOut "An error occured finding finding the data, Last message was $STATE"
+  fi
+ fi
+
+ShowOptions
+
+if [[ $OPT_MKI -eq 1 && $OPT_ASK -eq 0 ]]; then
+ShowInstOptions
+fi
+
+GitUpdate
+
+UpSudoTimeout
+
+CheckDeps
+
+if [ $OPT_CFA -eq 1 ]; then
+Ask "Run './reconf-all' ?"
+ if [ "${ANSWER,,}" = "y" ]; then
+ VitalCommand "./reconf-all" "reconfigure failed"
+ fi
+fi
+
+if [ $OPT_CNF -eq 1 ]; then
+Ask "Run './configure' ?"
+ if [ "${ANSWER,,}" = "y" ]; then
+ COM="./configure $CONFIG"
+
+ if [ $OPT_ERR -eq 1 ]; then 
+  COM="$COM -q"
+  echo "./configure set to quiet mode..."
+ fi
+ VitalCommand "$COM" "./configure failed"
+ fi
+fi
+
+if [ $OPT_MKE -eq 1 ]; then
+Ask "Run 'make' ?"
+ if [ "${ANSWER,,}" = "y" ]; then
+ VitalCommand "make" "'make' command failed"
+ fi
+fi
+
+if [ $OPT_MKI -eq 1 ]; then
+Ask "Run 'make install' ?"
+ if [ "${ANSWER,,}" = "y" ]; then
+ CheckUninstallGambas
+ if [[ $OPT_ASK -eq 0 && $OPT_INST_WAIT -eq 1 ]]; then read -p "Press return to continue to password prompt: "; fi
+ VitalCommand "sudo make install" "'make install' command failed"
+ fi
+fi
+
+if [ $OPT_DSK -eq 1 ]; then
+Ask "Install a desktop launcher icon?"
+ if [ "${ANSWER,,}" = "y" ]; then
+ xdg-icon-resource install --novendor --context apps --size 256 ./app/desktop/gambas3.png gambas3
+ xdg-desktop-icon install ./app/desktop/gambas3.desktop --novendor
+ chmod +x "$(xdg-user-dir)/Desktop/gambas3.desktop"
+ fi
+fi
+
+if [ $OPT_MNU -eq 1 ]; then
+Ask "Install Application menu item?"
+ xdg-icon-resource install --novendor --context apps --size 256 ./app/desktop/gambas3.png gambas3
+ if [ "${ANSWER,,}" = "y" ]; then
+ xdg-desktop-menu install ./app/desktop/gambas3.desktop --novendor
+ fi
+fi
+
+CheckSudo
+
+echo "Log: all completed @ $(date|awk {'print $4'})" >>"$LOG"
+echo -e "\nInstallation script now completed..."
+echo -ne "If all seemed to go well Gambas3 should now compiled and installed correctly\n(Check the above output for error messages or not)\nPress return to exit :"
+
+read
+
